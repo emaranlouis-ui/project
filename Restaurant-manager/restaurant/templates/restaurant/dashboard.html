@@ -1,0 +1,166 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Tableau de bord — Easy POS{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_sub %}Vue d'ensemble du restaurant — {{ current_month|date:"F Y" }}{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-outline" onclick="openModal('filter-modal')">
+    <i class="fa-solid fa-filter"></i> Filtrer la période
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- INDICATEURS CLÉS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label"><i class="fa-solid fa-arrow-trend-up"></i> Chiffre d'affaires</div>
+        <div class="kpi-value">{{ monthly_turnover|default:0|floatformat:0 }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-sub">{{ current_month|date:"F Y" }}</div>
+    </div>
+    <div class="kpi-card success">
+        <div class="kpi-label"><i class="fa-solid fa-receipt"></i> Commandes</div>
+        <div class="kpi-value">{{ monthly_order_count }}</div>
+        <div class="kpi-sub">Ce mois-ci</div>
+    </div>
+    <div class="kpi-card warning">
+        <div class="kpi-label"><i class="fa-solid fa-cart-shopping"></i> Dépenses achats</div>
+        <div class="kpi-value">{{ monthly_supply_expenses|default:0|floatformat:0 }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-sub">Approvisionnements</div>
+    </div>
+    <div class="kpi-card info">
+        <div class="kpi-label"><i class="fa-regular fa-calendar"></i> Période analysée</div>
+        <div class="kpi-value" style="font-size:1.1rem">{{ current_month|date:"m / Y" }}</div>
+        <div class="kpi-sub">Mois sélectionné</div>
+    </div>
+</div>
+
+<!-- TABLEAUX -->
+<div class="panels-grid">
+    <!-- Produits les plus vendus -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-fire"></i> Produits les plus vendus</h2>
+            <span class="panel-badge">Meilleures ventes</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Produit</th>
+                        <th>Quantité vendue</th>
+                        <th>Nb. commandes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in best_selling_products %}
+                        <tr>
+                            <td class="cell-muted">{{ forloop.counter }}</td>
+                            <td class="cell-primary">{{ product.nom }}</td>
+                            <td>{{ product.total_quantite|floatformat:0 }}</td>
+                            <td><span class="tag success">{{ product.nombre_commandes }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr class="empty-row">
+                            <td colspan="4"><i class="fa-solid fa-chart-bar"></i>Aucune vente ce mois-ci.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Alertes stock -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-triangle-exclamation"></i> Alertes de stock</h2>
+            <span class="panel-badge danger">{{ low_stock_items|length }} alerte{{ low_stock_items|length|pluralize }}</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingrédient</th>
+                        <th>Stock actuel</th>
+                        <th>Seuil</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock_items %}
+                        <tr>
+                            <td class="cell-primary">{{ item.ingredient.nom }}</td>
+                            <td><strong style="color:var(--danger)">{{ item.quantite_actuelle|floatformat:2 }}</strong></td>
+                            <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                            <td>
+                                {% if item.quantite_actuelle <= 0 %}
+                                    <span class="tag danger"><span class="alert-dot danger"></span> Rupture</span>
+                                {% else %}
+                                    <span class="tag warning"><span class="alert-dot warning"></span> Critique</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr class="empty-row">
+                            <td colspan="4"><i class="fa-solid fa-check-circle" style="color:var(--success)"></i>Aucune alerte active.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- MODAL: FILTRER LA PÉRIODE -->
+<div id="filter-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Filtrer la période</h3>
+            <button class="modal-close" onclick="closeModal('filter-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="get">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Mois</label>
+                    <select name="month" class="form-control">
+                        <option value="1"  {% if current_month.month == 1  %}selected{% endif %}>Janvier</option>
+                        <option value="2"  {% if current_month.month == 2  %}selected{% endif %}>Février</option>
+                        <option value="3"  {% if current_month.month == 3  %}selected{% endif %}>Mars</option>
+                        <option value="4"  {% if current_month.month == 4  %}selected{% endif %}>Avril</option>
+                        <option value="5"  {% if current_month.month == 5  %}selected{% endif %}>Mai</option>
+                        <option value="6"  {% if current_month.month == 6  %}selected{% endif %}>Juin</option>
+                        <option value="7"  {% if current_month.month == 7  %}selected{% endif %}>Juillet</option>
+                        <option value="8"  {% if current_month.month == 8  %}selected{% endif %}>Août</option>
+                        <option value="9"  {% if current_month.month == 9  %}selected{% endif %}>Septembre</option>
+                        <option value="10" {% if current_month.month == 10 %}selected{% endif %}>Octobre</option>
+                        <option value="11" {% if current_month.month == 11 %}selected{% endif %}>Novembre</option>
+                        <option value="12" {% if current_month.month == 12 %}selected{% endif %}>Décembre</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Année</label>
+                    <input type="number" name="year" value="{{ current_month.year }}" min="2020" max="2030" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('filter-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-filter"></i> Appliquer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock modals %}
+
+{% block extra_js %}
+<script>
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+</script>
+{% endblock %}

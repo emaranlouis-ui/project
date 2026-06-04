@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande confirmée — L'Étoile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'restaurant/app.css' %}">
+    <style>
+        :root {
+            --primary-accent: hsl(14, 100%, 57%);
+            --primary-hover: hsl(14, 85%, 46%);
+            --primary-light: hsl(14, 100%, 95%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .success-container {
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            background: var(--bg-card);
+            padding: 50px 40px;
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .success-icon {
+            font-size: 5.5rem;
+            color: var(--success);
+            margin-bottom: 25px;
+        }
+
+        .success-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 15px;
+        }
+
+        .success-text {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 35px;
+            line-height: 1.6;
+        }
+
+        .order-details {
+            background: var(--bg-page);
+            padding: 25px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 35px;
+            text-align: left;
+            border: 1.5px solid var(--border);
+        }
+
+        .order-details p {
+            margin: 0 0 12px 0;
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 8px;
+        }
+
+        .order-details p:last-child {
+            margin-bottom: 0;
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .order-details strong {
+            color: var(--text-primary);
+        }
+
+        .btn-brand {
+            background: var(--primary-accent);
+            color: #fff;
+            border: none;
+            padding: 14px 32px;
+            border-radius: var(--radius-pill);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .btn-brand:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="success-container">
+        <i class="fa-solid fa-circle-check success-icon"></i>
+        <h1 class="success-title">Commande confirmée</h1>
+        <p class="success-text">Merci <strong>{{ commande.client.prenom|default:commande.client.nom }}</strong>, votre commande chez <strong>L'Étoile</strong> a été enregistrée avec succès. Notre équipe vous contactera par téléphone sous peu.</p>
+        
+        <div class="order-details">
+            <p>Numéro de commande <span><strong>#{{ commande.id_commande }}</strong></span></p>
+            <p>Date et heure <span><strong>{{ commande.date|date:"d/m/Y H:i" }}</strong></span></p>
+            <p>Montant total <span style="color:var(--primary-accent); font-weight: 800;">{{ commande.montant_total }} FCFA</span></p>
+            <p>Mode de paiement <span><strong>{{ commande.mode_de_paiement }}</strong></span></p>
+        </div>
+        
+        <a href="{% url 'restaurant:client_reservation' %}" class="btn-brand">
+            <i class="fa-solid fa-house"></i> Retour à la Carte
+        </a>
+    </div>
+
+</body>
+</html>

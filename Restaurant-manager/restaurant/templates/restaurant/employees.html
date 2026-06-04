@@ -1,0 +1,361 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Ressources Humaines — Easy POS{% endblock %}
+{% block page_title %}Ressources Humaines{% endblock %}
+{% block page_sub %}Membres de l'équipe et rôles{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Rechercher un employé..." oninput="filterTable(this.value, 'emp-table')">
+</div>
+{% if request.user.is_superuser %}
+<button class="btn btn-primary" onclick="openModal('add-employee-modal')">
+    <i class="fa-solid fa-plus"></i> Ajouter
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-users"></i> Équipe du restaurant</h2>
+        <span class="panel-badge">{{ employees|length }} employé{{ employees|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table id="emp-table">
+            <thead>
+                <tr>
+                    <th>Employé</th>
+                    <th>Téléphone</th>
+                    <th>Salaire</th>
+                    <th>Date d'embauche</th>
+                    <th>Rôles / Postes</th>
+                    {% if request.user.is_superuser %}
+                    <th style="text-align:right">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in employees %}
+                    <tr>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <div class="emp-avatar">
+                                    {% if employee.image %}
+                                        <img src="{{ employee.image.url }}" alt="{{ employee.nom }}" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">
+                                    {% else %}
+                                        {{ employee.prenom|first|upper }}{{ employee.nom|first|upper }}
+                                    {% endif %}
+                                </div>
+                                <div class="cell-primary">{{ employee.prenom }} {{ employee.nom }}</div>
+                            </div>
+                        </td>
+                        <td class="cell-muted"><i class="fa-solid fa-phone" style="color:var(--primary);margin-right:5px;font-size:.8rem"></i>{{ employee.tel }}</td>
+                        <td><strong style="color:var(--success)">{{ employee.salaire|default:0|floatformat:0 }} FCFA</strong></td>
+                        <td class="cell-muted">{{ employee.date_embauche|date:"d/m/Y"|default:"—" }}</td>
+                        <td>
+                            {% for assignment in employee.affectations.all %}
+                                <span class="tag">{{ assignment.poste.libelle_poste }}</span>
+                            {% empty %}
+                                <span class="empty">Aucun rôle</span>
+                            {% endfor %}
+                        </td>
+                        {% if request.user.is_superuser %}
+                        <td style="text-align:right">
+                            <button class="btn-icon" onclick="openAffectationModal({{ employee.id_employe }})" title="Affecter un rôle">
+                                <i class="fa-solid fa-user-tag" style="color:var(--primary)"></i>
+                            </button>
+                            <button class="btn-icon" onclick="openSupervisionModal({{ employee.id_employe }})" title="Définir superviseur">
+                                <i class="fa-solid fa-sitemap" style="color:var(--warning)"></i>
+                            </button>
+                            <button class="btn-icon" onclick="openEditEmployeeModal({{ employee.id_employe }}, '{{ employee.nom|escapejs }}', '{{ employee.prenom|escapejs }}', '{{ employee.tel|escapejs }}', '{{ employee.salaire|default:0|floatformat:0 }}')" title="Modifier">
+                                <i class="fa-solid fa-pen" style="color:var(--info)"></i>
+                            </button>
+                            <button class="btn-icon" onclick="openDeleteEmployeeModal({{ employee.id_employe }}, '{{ employee.nom|escapejs }} {{ employee.prenom|escapejs }}')" title="Supprimer">
+                                <i class="fa-solid fa-trash" style="color:var(--danger)"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="5"><i class="fa-solid fa-users"></i>Aucun employé trouvé.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="panel full-width" style="margin-top:30px">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-user-lock"></i> Comptes Utilisateurs d'Accès</h2>
+        {% if request.user.is_superuser %}
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-user-modal')">
+            <i class="fa-solid fa-plus"></i> Nouveau Compte
+        </button>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom d'utilisateur</th>
+                    <th>Statut administrateur</th>
+                    <th>Dernière connexion</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td class="cell-primary">{{ u.username }}</td>
+                        <td>
+                            {% if u.groups.all %}
+                                {% for group in u.groups.all %}
+                                    {% if group.name == 'Administrateur' %}
+                                        <span class="tag success"><i class="fa-solid fa-shield-halved"></i> {{ group.name }}</span>
+                                    {% elif group.name == 'Directeur' %}
+                                        <span class="tag info"><i class="fa-solid fa-user-tie"></i> {{ group.name }}</span>
+                                    {% elif group.name == 'Chef cuisinier' %}
+                                        <span class="tag warning"><i class="fa-solid fa-fire-burner"></i> {{ group.name }}</span>
+                                    {% elif group.name == 'Gestionnaire de stock' %}
+                                        <span class="tag primary"><i class="fa-solid fa-boxes-stacked"></i> {{ group.name }}</span>
+                                    {% else %}
+                                        <span class="tag neutral"><i class="fa-solid fa-user"></i> {{ group.name }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% else %}
+                                {% if u.is_superuser %}
+                                    <span class="tag success"><i class="fa-solid fa-shield-halved"></i> Administrateur</span>
+                                {% else %}
+                                    <span class="tag neutral"><i class="fa-solid fa-user"></i> Sans rôle défini</span>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="cell-muted">{{ u.last_login|date:"d/m/Y H:i"|default:"Jamais connecté" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="3">Aucun compte utilisateur.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if request.user.is_superuser %}
+<!-- MODAL: AJOUTER COMPTE ACCÈS -->
+<div id="add-user-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouveau Compte d'Accès</h3>
+            <button class="modal-close" onclick="closeModal('add-user-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:employee_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_user">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nom d'utilisateur (Identifiant)</label>
+                    <input type="text" name="username" required class="form-control" placeholder="ex: serveur_jean">
+                </div>
+                <div class="form-group">
+                    <label>Mot de passe</label>
+                    <input type="password" name="password" required class="form-control" placeholder="Mot de passe">
+                </div>
+                <div class="form-group">
+                    <label>Rôle du compte (Accès spécifiques)</label>
+                    <select name="role_id" class="form-control" required>
+                        <option value="">-- Sélectionner un rôle --</option>
+                        {% for group in groups %}
+                            <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('add-user-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Créer le compte</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- MODAL: AJOUTER / MODIFIER EMPLOYÉ -->
+<div id="add-employee-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-employee-title">Ajouter un employé</h3>
+            <button class="modal-close" onclick="closeModal('add-employee-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:employee_crud' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="employee-action" value="add">
+            <input type="hidden" name="employee_id" id="employee-id" value="">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nom</label>
+                        <input type="text" name="nom" id="employee-nom" required class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Prénom</label>
+                        <input type="text" name="prenom" id="employee-prenom" required class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Téléphone</label>
+                    <input type="text" name="tel" id="employee-tel" required class="form-control">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Salaire (FCFA)</label>
+                        <input type="number" name="salaire" id="employee-salaire" required class="form-control" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Photo de profil</label>
+                        <input type="file" name="image" id="employee-image" class="form-control" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('add-employee-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SUPPRIMER EMPLOYÉ -->
+<div id="delete-employee-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Confirmer la suppression</h3>
+            <button class="modal-close" onclick="closeModal('delete-employee-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:employee_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="employee_id" id="delete-employee-id" value="">
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer l'employé <strong id="delete-employee-name"></strong> ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('delete-employee-modal')">Annuler</button>
+                <button type="submit" class="btn btn-danger">Supprimer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: AFFECTER POSTE -->
+<div id="affectation-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Affecter un poste</h3>
+            <button class="modal-close" onclick="closeModal('affectation-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:employee_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="affecter_poste">
+            <input type="hidden" name="employee_id" id="affect-emp-id">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Poste</label>
+                    <select name="poste_id" class="form-control" required>
+                        <option value="">-- Sélectionner un poste --</option>
+                        {% for poste in postes %}
+                        <option value="{{ poste.id_poste }}">{{ poste.libelle_poste }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('affectation-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Affecter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SUPERVISION -->
+<div id="supervision-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Définir un superviseur</h3>
+            <button class="modal-close" onclick="closeModal('supervision-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:employee_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="ajouter_supervision">
+            <input type="hidden" name="employee_id" id="supervise-emp-id">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Superviseur</label>
+                    <select name="superviseur_id" class="form-control" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for emp in employees %}
+                        <option value="{{ emp.id_employe }}">{{ emp.prenom }} {{ emp.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('supervision-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Valider</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock modals %}
+
+{% block extra_js %}
+<script>
+function filterTable(query, tableId) {
+    const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+
+function openAffectationModal(id) {
+    document.getElementById('affect-emp-id').value = id;
+    document.getElementById('affectation-modal').classList.add('active');
+}
+
+function openSupervisionModal(id) {
+    document.getElementById('supervise-emp-id').value = id;
+    document.getElementById('supervision-modal').classList.add('active');
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function openEditEmployeeModal(id, nom, prenom, tel, salaire) {
+    document.getElementById('modal-employee-title').innerText = "Modifier l'employé";
+    document.getElementById('employee-action').value = "edit";
+    document.getElementById('employee-id').value = id;
+    document.getElementById('employee-nom').value = nom;
+    document.getElementById('employee-prenom').value = prenom;
+    document.getElementById('employee-tel').value = tel;
+    document.getElementById('employee-salaire').value = salaire;
+    openModal('add-employee-modal');
+}
+
+function openDeleteEmployeeModal(id, nom_complet) {
+    document.getElementById('delete-employee-id').value = id;
+    document.getElementById('delete-employee-name').innerText = nom_complet;
+    openModal('delete-employee-modal');
+}
+</script>
+{% endblock %}

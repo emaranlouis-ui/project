@@ -1,0 +1,234 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Opérations & Logistique — Easy POS{% endblock %}
+{% block page_title %}Opérations{% endblock %}
+{% block page_sub %}Équipements, véhicules et campagnes marketing{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px;">
+
+    <!-- ÉQUIPEMENTS -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-blender"></i> Équipements</h2>
+            {% if perms.restaurant.add_equipement %}
+            <button class="btn btn-primary btn-sm" onclick="openModal('add-equip-modal')"><i class="fa-solid fa-plus"></i></button>
+            {% endif %}
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Nom</th><th>État</th><th>Valeur</th></tr>
+                </thead>
+                <tbody>
+                    {% for eq in equipements %}
+                    <tr>
+                        <td class="cell-primary">{{ eq.nom }}</td>
+                        <td>
+                            {% if eq.etat == "Opérationnel" %}<span class="tag success">{{ eq.etat }}</span>
+                            {% elif eq.etat == "En maintenance" %}<span class="tag warning">{{ eq.etat }}</span>
+                            {% else %}<span class="tag danger">{{ eq.etat }}</span>{% endif %}
+                        </td>
+                        <td>{{ eq.valeur|default:0|floatformat:0 }} FCFA</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="3">Aucun équipement enregistré.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- VÉHICULES -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-motorcycle"></i> Véhicules</h2>
+            {% if perms.restaurant.add_vehicule %}
+            <button class="btn btn-primary btn-sm" onclick="openModal('add-veh-modal')"><i class="fa-solid fa-plus"></i></button>
+            {% endif %}
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Modèle</th><th>Immatriculation</th><th>État</th></tr>
+                </thead>
+                <tbody>
+                    {% for v in vehicules %}
+                    <tr>
+                        <td class="cell-primary">{{ v.modele }}</td>
+                        <td class="cell-muted">{{ v.immatriculation }}</td>
+                        <td>
+                            {% if v.etat == "Disponible" %}<span class="tag success">{{ v.etat }}</span>
+                            {% elif v.etat == "En maintenance" %}<span class="tag warning">{{ v.etat }}</span>
+                            {% else %}<span class="tag info">{{ v.etat }}</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}<tr><td colspan="3">Aucun véhicule enregistré.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MARKETING -->
+    <div class="panel full-width">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-bullhorn"></i> Campagnes Marketing</h2>
+            {% if perms.restaurant.add_marketing %}
+            <button class="btn btn-primary btn-sm" onclick="openModal('add-mark-modal')"><i class="fa-solid fa-plus"></i> Nouvelle campagne</button>
+            {% endif %}
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Nom</th><th>Canal</th><th>Dates</th><th>Budget</th><th>ROI</th></tr>
+                </thead>
+                <tbody>
+                    {% for m in campagnes %}
+                    <tr>
+                        <td class="cell-primary">{{ m.nom }}</td>
+                        <td><span class="tag">{{ m.canal }}</span></td>
+                        <td class="cell-muted">{{ m.date_debut|date:"d/m/Y" }} - {{ m.date_fin|date:"d/m/Y" }}</td>
+                        <td>{{ m.budget|default:0|floatformat:0 }} FCFA</td>
+                        <td>{{ m.roi_estime|default:0|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="5">Aucune campagne en cours.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- TABLES -->
+    <div class="panel full-width">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-chair"></i> Tables du Restaurant</h2>
+            <button class="btn btn-primary btn-sm" onclick="openModal('add-table-modal')"><i class="fa-solid fa-plus"></i> Nouvelle Table</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>N° Table</th><th>Capacité (Personnes)</th><th>Commentaire / Emplacement</th></tr>
+                </thead>
+                <tbody>
+                    {% for t in tables %}
+                    <tr>
+                        <td class="cell-primary">Table {{ t.numero_table }}</td>
+                        <td><span class="tag info">{{ t.capacite }} places</span></td>
+                        <td class="cell-muted">{{ t.commentaire|default:"—" }}</td>
+                    </tr>
+                    {% empty %}<tr><td colspan="3">Aucune table enregistrée.</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if perms.restaurant.add_equipement %}
+<!-- MODAL: ADD EQUIPEMENT -->
+<div id="add-equip-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouvel Équipement</h3>
+            <button class="modal-close" onclick="closeModal('add-equip-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:operations_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_equipement">
+            <div class="modal-body">
+                <div class="form-group"><label>Nom</label><input type="text" name="nom" class="form-control" required></div>
+                <div class="form-group">
+                    <label>État</label>
+                    <select name="etat" class="form-control">
+                        <option value="Opérationnel">Opérationnel</option>
+                        <option value="En maintenance">En maintenance</option>
+                        <option value="Hors service">Hors service</option>
+                    </select>
+                </div>
+                <div class="form-group"><label>Valeur (FCFA)</label><input type="number" name="valeur" class="form-control"></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if perms.restaurant.add_vehicule %}
+<!-- MODAL: ADD VEHICULE -->
+<div id="add-veh-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouveau Véhicule</h3>
+            <button class="modal-close" onclick="closeModal('add-veh-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:operations_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_vehicule">
+            <div class="modal-body">
+                <div class="form-group"><label>Immatriculation</label><input type="text" name="immatriculation" class="form-control" required></div>
+                <div class="form-group"><label>Modèle</label><input type="text" name="modele" class="form-control" required></div>
+                <div class="form-group">
+                    <label>État</label>
+                    <select name="etat" class="form-control">
+                        <option value="Disponible">Disponible</option>
+                        <option value="En livraison">En livraison</option>
+                        <option value="En maintenance">En maintenance</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if perms.restaurant.add_marketing %}
+<!-- MODAL: ADD MARKETING -->
+<div id="add-mark-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouvelle Campagne</h3>
+            <button class="modal-close" onclick="closeModal('add-mark-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:operations_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_marketing">
+            <div class="modal-body">
+                <div class="form-group"><label>Nom de la campagne</label><input type="text" name="nom" class="form-control" required></div>
+                <div class="form-group"><label>Canal</label><input type="text" name="canal" class="form-control" required></div>
+                <div class="form-group"><label>Budget (FCFA)</label><input type="number" name="budget" class="form-control"></div>
+                <div class="form-group"><label>Début</label><input type="date" name="date_debut" class="form-control" required></div>
+                <div class="form-group"><label>Fin</label><input type="date" name="date_fin" class="form-control" required></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- MODAL: ADD TABLE -->
+<div id="add-table-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouvelle Table</h3>
+            <button class="modal-close" onclick="closeModal('add-table-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:operations_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_table">
+            <div class="modal-body">
+                <div class="form-group"><label>Numéro de Table</label><input type="text" name="numero_table" class="form-control" required placeholder="ex: 12"></div>
+                <div class="form-group"><label>Capacité (Nombre de places)</label><input type="number" name="capacite" class="form-control" required min="1" value="4"></div>
+                <div class="form-group"><label>Commentaire / Emplacement</label><textarea name="commentaire" class="form-control" rows="3" placeholder="ex: Près de la fenêtre, terrasse..."></textarea></div>
+            </div>
+            <div class="modal-footer"><button type="submit" class="btn btn-primary">Enregistrer</button></div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+</script>
+{% endblock %}

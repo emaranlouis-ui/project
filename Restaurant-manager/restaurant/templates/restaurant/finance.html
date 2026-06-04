@@ -1,0 +1,77 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Finances — Easy POS{% endblock %}
+{% block page_title %}Finances{% endblock %}
+{% block page_sub %}Factures & mouvements financiers{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Rechercher une facture..." oninput="filterTable(this.value, 'finance-table')">
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-coins"></i> Transactions financières</h2>
+        <span class="panel-badge">{{ invoices|length }} facture{{ invoices|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table id="finance-table">
+            <thead>
+                <tr>
+                    <th>N° de facture</th>
+                    <th>Date</th>
+                    <th>Type de transaction</th>
+                    <th>Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in invoices %}
+                    <tr>
+                        <td class="cell-muted">#{{ invoice.id_facture }}</td>
+                        <td class="cell-muted">{{ invoice.date|date:"d/m/Y"|default:"—" }}</td>
+                        <td>
+                            {% if "Client" in invoice.type_facture|default:"" %}
+                                <span class="tag success"><i class="fa-solid fa-arrow-down"></i> {{ invoice.type_facture }}</span>
+                            {% elif "Achat" in invoice.type_facture|default:"" %}
+                                <span class="tag danger"><i class="fa-solid fa-arrow-up"></i> {{ invoice.type_facture }}</span>
+                            {% elif "Marketing" in invoice.type_facture|default:"" %}
+                                <span class="tag info"><i class="fa-solid fa-bullhorn"></i> {{ invoice.type_facture }}</span>
+                            {% elif "Salaire" in invoice.type_facture|default:"" %}
+                                <span class="tag warning"><i class="fa-solid fa-users"></i> {{ invoice.type_facture }}</span>
+                            {% else %}
+                                <span class="tag neutral">{{ invoice.type_facture|default:"—" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if "Client" in invoice.type_facture|default:"" %}
+                                <strong style="color:var(--success)">+{{ invoice.montant|default:0|floatformat:0 }} FCFA</strong>
+                            {% else %}
+                                <strong style="color:var(--danger)">-{{ invoice.montant|default:0|floatformat:0 }} FCFA</strong>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="4"><i class="fa-solid fa-coins"></i>Aucune transaction trouvée.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterTable(query, tableId) {
+    const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}
