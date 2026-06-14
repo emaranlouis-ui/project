@@ -1,0 +1,328 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Gestion du Stock — Easy POS{% endblock %}
+{% block page_title %}Gestion du Stock{% endblock %}
+{% block page_sub %}Ingrédients, niveaux et alertes de stock{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Rechercher un ingrédient..." oninput="filterTable(this.value, 'stock-table')">
+</div>
+{% endblock %}
+
+{% block content %}
+
+{% if low_stock_items %}
+<!-- ALERTES CRITIQUES -->
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-triangle-exclamation" style="color:var(--danger)"></i> Alertes de stock critique</h2>
+        <span class="panel-badge danger">{{ low_stock_items|length }} alerte{{ low_stock_items|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ingrédient</th>
+                    <th>Quantité actuelle</th>
+                    <th>Seuil d'alerte</th>
+                    <th>Unité</th>
+                    <th>Niveau</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in low_stock_items %}
+                    <tr>
+                        <td class="cell-primary">{{ item.ingredient.nom }}</td>
+                        <td><strong style="color:var(--danger)">{{ item.quantite_actuelle|floatformat:2 }}</strong></td>
+                        <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                        <td class="cell-muted">{{ item.ingredient.unite_de_mesure }}</td>
+                        <td>
+                            <div class="stock-bar-wrap">
+                                <div class="stock-bar">
+                                    <div class="stock-bar-fill danger"
+                                         style="width: {% if item.seuil_alerte and item.seuil_alerte > 0 %}{% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 %}{% else %}0{% endif %}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.quantite_actuelle <= 0 %}
+                                <span class="tag danger"><span class="alert-dot danger"></span> Rupture</span>
+                            {% else %}
+                                <span class="tag warning"><span class="alert-dot warning"></span> Critique</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- STOCK COMPLET -->
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-cubes"></i> État complet du stock</h2>
+        <span class="panel-badge">{{ stocks|length }} ingrédient{{ stocks|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table id="stock-table">
+            <thead>
+                <tr>
+                    <th>Ingrédient</th>
+                    <th>Type</th>
+                    <th>Quantité actuelle</th>
+                    <th>Seuil d'alerte</th>
+                    <th>Unité</th>
+                    <th>Niveau</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in stocks %}
+                    <tr>
+                        <td class="cell-primary">{{ item.ingredient.nom }}</td>
+                        <td><span class="tag neutral">{{ item.ingredient.type_ingredient|default:"—" }}</span></td>
+                        <td>{{ item.quantite_actuelle|floatformat:2 }}</td>
+                        <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                        <td class="cell-muted">{{ item.ingredient.unite_de_mesure }}</td>
+                        <td>
+                            <div class="stock-bar-wrap">
+                                <div class="stock-bar">
+                                    {% if item.seuil_alerte and item.seuil_alerte > 0 %}
+                                        {% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 as pct %}
+                                        <div class="stock-bar-fill {% if pct <= 50 %}danger{% elif pct <= 100 %}warning{% endif %}"
+                                             style="width:{% if pct > 100 %}100{% else %}{{ pct }}{% endif %}%"></div>
+                                    {% else %}
+                                        <div class="stock-bar-fill" style="width:100%"></div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if item.quantite_actuelle <= 0 %}
+                                <span class="tag danger">Rupture</span>
+                            {% elif item.seuil_alerte and item.quantite_actuelle <= item.seuil_alerte %}
+                                <span class="tag warning">Critique</span>
+                            {% else %}
+                                <span class="tag success">Normal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="7"><i class="fa-solid fa-cubes"></i>Aucun stock trouvé.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+</div>
+
+<!-- HISTORIQUE DES VARIATIONS -->
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-clock-rotate-left"></i> Historique des variations</h2>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Ingrédient</th>
+                    <th>Type</th>
+                    <th>Quantité</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for var in variations %}
+                    <tr>
+                        <td>{{ var.date|date:"d M Y" }}</td>
+                        <td class="cell-primary">{{ var.ingredient.nom }}</td>
+                        <td>
+                            {% if var.type_variation == "Sortie" %}
+                                <span class="tag danger"><i class="fa-solid fa-arrow-down"></i> Sortie</span>
+                            {% else %}
+                                <span class="tag success"><i class="fa-solid fa-arrow-up"></i> Entrée</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ var.quantite|floatformat:2 }}</strong> <span class="cell-muted">{{ var.ingredient.unite_de_mesure }}</span></td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4">Aucune variation récente.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- FOURNISSEURS -->
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-truck-moving"></i> Fournisseurs</h2>
+        {% if perms.restaurant.change_stock %}
+        <button class="btn btn-primary" onclick="openModal('add-fournisseur-modal')"><i class="fa-solid fa-plus"></i> Nouveau</button>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Nom</th>
+                    <th>Téléphone</th>
+                    <th>Adresse</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for four in fournisseurs %}
+                    <tr>
+                        <td class="cell-primary">{{ four.nom }}</td>
+                        <td>{{ four.tel }}</td>
+                        <td>{{ four.adresse }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3">Aucun fournisseur enregistré.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- APPROVISIONNEMENTS -->
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-boxes-packing"></i> Approvisionnements Récents</h2>
+        {% if perms.restaurant.change_stock %}
+        <button class="btn btn-primary" onclick="openModal('add-appro-modal')"><i class="fa-solid fa-plus"></i> Réapprovisionner</button>
+        {% endif %}
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Ingrédient</th>
+                    <th>Fournisseur</th>
+                    <th>Quantité</th>
+                    <th>Prix Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app in approvisionnements %}
+                    <tr>
+                        <td>{{ app.date|date:"d M Y" }}</td>
+                        <td class="cell-primary">{{ app.ingredient.nom }}</td>
+                        <td>{{ app.fournisseur.nom }}</td>
+                        <td><strong>{{ app.quantite|floatformat:2 }}</strong> {{ app.ingredient.unite_de_mesure }}</td>
+                        <td>{{ app.prix_unitaire }} FCFA</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="5">Aucun approvisionnement récent.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if perms.restaurant.change_stock %}
+<!-- MODAL: ADD FOURNISSEUR -->
+<div id="add-fournisseur-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Nouveau Fournisseur</h3>
+            <button class="modal-close" onclick="closeModal('add-fournisseur-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:inventory_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_fournisseur">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nom du fournisseur</label>
+                    <input type="text" name="nom" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Téléphone</label>
+                    <input type="text" name="tel" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Adresse</label>
+                    <input type="text" name="adresse" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('add-fournisseur-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: ADD APPROVISIONNEMENT -->
+<div id="add-appro-modal" class="modal-overlay">
+    <div class="modal-content modal-md">
+        <div class="modal-header">
+            <h3>Nouvel Approvisionnement</h3>
+            <button class="modal-close" onclick="closeModal('add-appro-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:inventory_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_approvisionnement">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Ingrédient</label>
+                    <select name="ingredient_id" class="form-control" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for item in stocks %}
+                            <option value="{{ item.ingredient.pk }}">{{ item.ingredient.nom }} ({{ item.ingredient.unite_de_mesure }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fournisseur</label>
+                    <select name="fournisseur_id" class="form-control" required>
+                        <option value="">-- Sélectionner --</option>
+                        {% for four in fournisseurs %}
+                            <option value="{{ four.pk }}">{{ four.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Quantité reçue</label>
+                    <input type="number" step="0.01" name="quantite" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Prix total payé (FCFA)</label>
+                    <input type="number" name="prix" class="form-control" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('add-appro-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Valider la réception</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterTable(query, tableId) {
+    const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+</script>
+{% endblock %}

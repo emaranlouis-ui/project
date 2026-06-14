@@ -1,0 +1,91 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Commandes — Easy POS{% endblock %}
+{% block page_title %}Gestion des Commandes{% endblock %}
+{% block page_sub %}Historique des 100 dernières commandes{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="order-search" placeholder="Rechercher une commande..." oninput="filterTable(this.value)">
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-receipt"></i> Liste des commandes</h2>
+        <span class="panel-badge">{{ orders|length }} commande{{ orders|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table id="orders-table">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Client</th>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Paiement</th>
+                    <th>Montant</th>
+                    <th>Articles</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td class="cell-muted">#{{ order.id_commande }}</td>
+                        <td class="cell-primary">{{ order.client|default:"Anonyme" }}</td>
+                        <td class="cell-muted">{{ order.date|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            {% if order.type_commande == "Sur place" %}
+                                <span class="tag success"><i class="fa-solid fa-chair"></i> Sur place</span>
+                            {% elif "livrer" in order.type_commande|lower %}
+                                <span class="tag info"><i class="fa-solid fa-truck"></i> Livraison</span>
+                            {% elif "emporter" in order.type_commande|lower %}
+                                <span class="tag warning"><i class="fa-solid fa-bag-shopping"></i> À emporter</span>
+                            {% else %}
+                                <span class="tag neutral">{{ order.type_commande|default:"—" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if "Orange" in order.mode_de_paiement|default:"" %}
+                                <span class="tag warning"><i class="fa-solid fa-mobile-screen"></i> Orange Money</span>
+                            {% elif "MTN" in order.mode_de_paiement|default:"" %}
+                                <span class="tag warning">MTN MoMo</span>
+                            {% elif "pèces" in order.mode_de_paiement|default:"" or "peces" in order.mode_de_paiement|default:"" %}
+                                <span class="tag neutral"><i class="fa-solid fa-money-bill-wave"></i> Espèces</span>
+                            {% else %}
+                                <span class="tag neutral">{{ order.mode_de_paiement|default:"—" }}</span>
+                            {% endif %}
+                        </td>
+                        <td><strong style="color:var(--primary)">{{ order.montant_total|default:0|floatformat:0 }} FCFA</strong></td>
+                        <td>
+                            {% for line in order.lignes.all %}
+                                <span class="tag">{{ line.produit.nom }} ×{{ line.quantite|floatformat:0 }}</span>
+                            {% empty %}
+                                <span class="empty">Aucun article</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="7"><i class="fa-solid fa-receipt"></i>Aucune commande enregistrée.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterTable(query) {
+    const rows = document.querySelectorAll('#orders-table tbody tr');
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+</script>
+{% endblock %}

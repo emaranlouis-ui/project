@@ -1,0 +1,63 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Calcul de la Paie — Easy POS{% endblock %}
+{% block page_title %}Paie & Salaires{% endblock %}
+{% block page_sub %}Génération des fiches de paie pour {{ current_month|date:"F Y" }}{% endblock %}
+
+{% block content %}
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-file-invoice-dollar"></i> Calcul des salaires</h2>
+        <button class="btn btn-primary" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimer récapitulatif</button>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Employé</th>
+                    <th>Poste(s)</th>
+                    <th>Téléphone</th>
+                    <th>Salaire de base</th>
+                    <th>Jours travaillés (Estimés)</th>
+                    <th>Net à payer</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for emp in employees %}
+                    <tr>
+                        <td class="cell-primary">
+                            <div style="display:flex;align-items:center;gap:10px;">
+                                {% if emp.image %}
+                                    <div class="employee-avatar" style="background-image:url('{{ emp.image.url }}');width:30px;height:30px;border-radius:50%;background-size:cover;"></div>
+                                {% else %}
+                                    <div class="employee-avatar" style="width:30px;height:30px;border-radius:50%;background:#e0e5ec;display:flex;align-items:center;justify-content:center;color:var(--text-muted);"><i class="fa-solid fa-user"></i></div>
+                                {% endif %}
+                                {{ emp.prenom }} {{ emp.nom }}
+                            </div>
+                        </td>
+                        <td>
+                            {% for affectation in emp.affectations.all %}
+                                <span class="tag">{{ affectation.poste.libelle_poste }}</span>
+                            {% empty %}
+                                <span class="empty">—</span>
+                            {% endfor %}
+                        </td>
+                        <td class="cell-muted">{{ emp.tel }}</td>
+                        <td>{{ emp.salaire|default:0|floatformat:0 }} FCFA</td>
+                        <td class="cell-muted">Mois complet</td>
+                        <td><strong style="color:var(--success);font-size:1.1rem">{{ emp.salaire|default:0|floatformat:0 }} FCFA</strong></td>
+                        <td>
+                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.8rem;" onclick="alert('Génération de la fiche de paie de {{ emp.prenom }} en PDF (Simulation)')"><i class="fa-solid fa-download"></i> Fiche</button>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7">Aucun employé enregistré pour la paie.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

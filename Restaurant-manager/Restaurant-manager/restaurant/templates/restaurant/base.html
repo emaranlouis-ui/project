@@ -1,0 +1,201 @@
+{% load static %}
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Restaurant POS Manager — Système de gestion de restaurant">
+    <title>{% block title %}Restaurant POS Manager{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'restaurant/app.css' %}">
+    <style>
+        .user-profile-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        .user-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 10px;
+            background: var(--bg-card, white);
+            border: 1px solid var(--border, #eee);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-width: 150px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .user-profile-wrapper:hover .user-dropdown {
+            display: block;
+        }
+        .user-dropdown a, .user-dropdown button {
+            display: block;
+            width: 100%;
+            padding: 12px 15px;
+            text-align: left;
+            border: none;
+            background: none;
+            color: var(--text-primary, #333);
+            text-decoration: none;
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .user-dropdown a:hover, .user-dropdown button:hover {
+            background: var(--bg-page, #f8f9fa);
+            color: var(--primary, #0277bd);
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<div class="pos-container">
+
+    <!-- ===== TOPBAR ===== -->
+    <header class="pos-header">
+        <div class="header-left">
+            <div class="logo"><span class="logo-accent">Restaurant</span> POS</div>
+        </div>
+        <nav class="header-nav" aria-label="Navigation principale">
+            {% if perms.restaurant.add_commande %}
+            <a href="{% url 'restaurant:pos' %}"        class="nav-item {% if request.resolver_match.url_name == 'pos' %}active{% endif %}">Accueil</a>
+            {% endif %}
+            {% if perms.restaurant.view_commande %}
+            <a href="{% url 'restaurant:orders' %}"     class="nav-item {% if request.resolver_match.url_name == 'orders' %}active{% endif %}">Commandes</a>
+            {% endif %}
+            {% if perms.restaurant.view_employe %}
+            <a href="{% url 'restaurant:employees' %}"  class="nav-item {% if request.resolver_match.url_name == 'employees' %}active{% endif %}">Employés</a>
+            <a href="{% url 'restaurant:payroll' %}"  class="nav-item {% if request.resolver_match.url_name == 'payroll' %}active{% endif %}">Paie</a>
+            {% endif %}
+            {% if perms.restaurant.view_facture %}
+            <a href="{% url 'restaurant:finance' %}"    class="nav-item {% if request.resolver_match.url_name == 'finance' %}active{% endif %}">Finances</a>
+            {% endif %}
+            <a href="{% url 'restaurant:operations' %}" class="nav-item {% if request.resolver_match.url_name == 'operations' %}active{% endif %}">Opérations</a>
+            {% if perms.restaurant.view_employe %}
+            <a href="{% url 'restaurant:dashboard' %}"  class="nav-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Tableau de bord</a>
+            {% endif %}
+        </nav>
+        <div class="header-right">
+            {% block header_actions %}{% endblock %}
+            {% if perms.restaurant.add_commande %}
+            <a href="{% url 'restaurant:pos' %}" class="btn btn-primary">
+                <i class="fa-solid fa-plus"></i> Nouvelle Commande
+            </a>
+            {% endif %}
+            <div class="notification-badge" title="Notifications">
+                <i class="fa-regular fa-bell"></i>
+                <span class="badge-dot"></span>
+            </div>
+            <div class="user-profile-wrapper">
+                <div class="user-profile" style="cursor: pointer;">
+                    <span class="avatar">{{ request.user.username|first|upper }}</span>
+                    <i class="fa-solid fa-chevron-down profile-arrow"></i>
+                </div>
+                <div class="user-dropdown">
+                    <a href="{% url 'restaurant:profile' %}"><i class="fa-solid fa-user"></i> Mon Profil</a>
+                    <form method="post" action="{% url 'logout' %}" style="margin: 0;">
+                        {% csrf_token %}
+                        <button type="submit" style="color: #e74c3c;"><i class="fa-solid fa-arrow-right-from-bracket"></i> Déconnexion</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== MAIN ===== -->
+    <div class="pos-main">
+
+        <!-- SIDEBAR GAUCHE (icônes navigation) -->
+        <aside class="pos-sidebar-left" aria-label="Navigation secondaire">
+            {% if perms.restaurant.add_commande %}
+            <a href="{% url 'restaurant:pos' %}" class="category-icon-item {% if request.resolver_match.url_name == 'pos' %}active{% endif %}" title="Caisse POS">
+                <div class="icon-wrapper"><i class="fa-solid fa-cash-register"></i></div>
+                <span>Caisse</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_cuisine %}
+            <a href="{% url 'restaurant:kitchen' %}" class="category-icon-item {% if request.resolver_match.url_name == 'kitchen' %}active{% endif %}" title="Écran Cuisine (KDS)">
+                <div class="icon-wrapper"><i class="fa-solid fa-fire-burner"></i></div>
+                <span>Cuisine</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_employe %}
+            <a href="{% url 'restaurant:dashboard' %}" class="category-icon-item {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" title="Tableau de bord">
+                <div class="icon-wrapper"><i class="fa-solid fa-chart-pie"></i></div>
+                <span>Tableau</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_produit %}
+            <a href="{% url 'restaurant:products' %}" class="category-icon-item {% if request.resolver_match.url_name == 'products' %}active{% endif %}" title="Produits">
+                <div class="icon-wrapper"><i class="fa-solid fa-bowl-food"></i></div>
+                <span>Produits</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_commande %}
+            <a href="{% url 'restaurant:orders' %}" class="category-icon-item {% if request.resolver_match.url_name == 'orders' %}active{% endif %}" title="Commandes">
+                <div class="icon-wrapper"><i class="fa-solid fa-receipt"></i></div>
+                <span>Commandes</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_stock %}
+            <a href="{% url 'restaurant:inventory' %}" class="category-icon-item {% if request.resolver_match.url_name == 'inventory' %}active{% endif %}" title="Stock">
+                <div class="icon-wrapper"><i class="fa-solid fa-cubes"></i></div>
+                <span>Stock</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_employe %}
+            <a href="{% url 'restaurant:employees' %}" class="category-icon-item {% if request.resolver_match.url_name == 'employees' %}active{% endif %}" title="Ressources Humaines">
+                <div class="icon-wrapper"><i class="fa-solid fa-users"></i></div>
+                <span>Équipe</span>
+            </a>
+            <a href="{% url 'restaurant:payroll' %}" class="category-icon-item {% if request.resolver_match.url_name == 'payroll' %}active{% endif %}" title="Paie">
+                <div class="icon-wrapper"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+                <span>Paie</span>
+            </a>
+            {% endif %}
+            {% if perms.restaurant.view_facture %}
+            <a href="{% url 'restaurant:finance' %}" class="category-icon-item {% if request.resolver_match.url_name == 'finance' %}active{% endif %}" title="Finances">
+                <div class="icon-wrapper"><i class="fa-solid fa-coins"></i></div>
+                <span>Finances</span>
+            </a>
+            {% endif %}
+            <a href="{% url 'restaurant:operations' %}" class="category-icon-item {% if request.resolver_match.url_name == 'operations' %}active{% endif %}" title="Opérations">
+                <div class="icon-wrapper"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <span>Opérations</span>
+            </a>
+            {% if request.user.is_staff %}
+            <a href="{% url 'admin:index' %}" class="category-icon-item" title="Administration Django">
+                <div class="icon-wrapper"><i class="fa-solid fa-gears"></i></div>
+                <span>Admin</span>
+            </a>
+            {% endif %}
+        </aside>
+
+        <!-- CONTENU PRINCIPAL -->
+        <section class="pos-content">
+            <!-- EN-TÊTE DE PAGE -->
+            <div class="page-header">
+                <div class="page-title-group">
+                    <h1 class="page-title">{% block page_title %}Page{% endblock %}</h1>
+                    <span class="page-sub">{% block page_sub %}Restaurant Manager{% endblock %}</span>
+                </div>
+                <div class="page-header-actions">
+                    {% block page_actions %}{% endblock %}
+                </div>
+            </div>
+
+            <!-- CONTENU -->
+            <div class="page-body">
+                {% block content %}{% endblock %}
+            </div>
+        </section>
+
+    </div><!-- /pos-main -->
+</div><!-- /pos-container -->
+
+{% block modals %}{% endblock %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

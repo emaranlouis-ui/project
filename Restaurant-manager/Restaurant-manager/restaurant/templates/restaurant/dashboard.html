@@ -1,0 +1,474 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Tableau de bord — Easy POS{% endblock %}
+{% block page_title %}Tableau de bord{% endblock %}
+{% block page_sub %}Vue d'ensemble du restaurant — {{ current_month|date:"F Y" }}{% endblock %}
+
+{% block page_actions %}
+<button class="btn btn-outline" onclick="openModal('filter-modal')">
+    <i class="fa-solid fa-filter"></i> Filtrer la période
+</button>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.dashboard-wrap {
+    padding: 0 4px;
+    overflow-y: auto;
+}
+
+/* KPI Cards */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+/* Charts section */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.charts-grid-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.chart-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-card-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.chart-card-title i {
+    color: var(--primary);
+}
+
+.chart-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: var(--bg-page);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+}
+
+.chart-container {
+    position: relative;
+    width: 100%;
+}
+
+.chart-container.tall {
+    height: 260px;
+}
+
+.chart-container.medium {
+    height: 220px;
+}
+
+.chart-container.short {
+    height: 180px;
+}
+
+/* Tables */
+.panels-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+@media (max-width: 1100px) {
+    .charts-grid { grid-template-columns: 1fr; }
+    .charts-grid-bottom { grid-template-columns: 1fr; }
+    .panels-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrap">
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-label"><i class="fa-solid fa-arrow-trend-up"></i> Chiffre d'affaires</div>
+        <div class="kpi-value">{{ monthly_turnover|default:0|floatformat:0 }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-sub">{{ current_month|date:"F Y" }}</div>
+    </div>
+    <div class="kpi-card success">
+        <div class="kpi-label"><i class="fa-solid fa-receipt"></i> Commandes</div>
+        <div class="kpi-value">{{ monthly_order_count }}</div>
+        <div class="kpi-sub">Ce mois-ci</div>
+    </div>
+    <div class="kpi-card warning">
+        <div class="kpi-label"><i class="fa-solid fa-cart-shopping"></i> Dépenses achats</div>
+        <div class="kpi-value">{{ monthly_supply_expenses|default:0|floatformat:0 }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-sub">Approvisionnements</div>
+    </div>
+    <div class="kpi-card info">
+        <div class="kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Alertes stock</div>
+        <div class="kpi-value">{{ low_stock_items|length }}</div>
+        <div class="kpi-sub">Ingrédients critiques</div>
+    </div>
+</div>
+
+<!-- GRAPHIQUES LIGNE 1 : CA 6 mois + répartition par type -->
+<div class="charts-grid">
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title"><i class="fa-solid fa-chart-line"></i> Évolution du chiffre d'affaires</div>
+            <span class="chart-badge">6 derniers mois</span>
+        </div>
+        <div class="chart-container tall">
+            <canvas id="chartCA"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title"><i class="fa-solid fa-chart-pie"></i> Commandes par type</div>
+            <span class="chart-badge">{{ current_month|date:"F Y" }}</span>
+        </div>
+        <div class="chart-container medium" style="display:flex;align-items:center;justify-content:center;">
+            <canvas id="chartType"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- GRAPHIQUES LIGNE 2 : Ventes journalières + Top produits -->
+<div class="charts-grid-bottom">
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title"><i class="fa-solid fa-chart-bar"></i> Ventes journalières</div>
+            <span class="chart-badge">{{ current_month|date:"F Y" }}</span>
+        </div>
+        <div class="chart-container tall">
+            <canvas id="chartDaily"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div class="chart-card-header">
+            <div class="chart-card-title"><i class="fa-solid fa-fire"></i> Top 5 produits</div>
+            <span class="chart-badge">Tous temps</span>
+        </div>
+        <div class="chart-container tall">
+            <canvas id="chartTop"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- TABLEAUX -->
+<div class="panels-grid">
+    <!-- Produits les plus vendus -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-fire"></i> Produits les plus vendus</h2>
+            <span class="panel-badge">Meilleures ventes</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Produit</th>
+                        <th>Quantité vendue</th>
+                        <th>Nb. commandes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in best_selling_products %}
+                        <tr>
+                            <td class="cell-muted">{{ forloop.counter }}</td>
+                            <td class="cell-primary">{{ product.nom }}</td>
+                            <td>{{ product.total_quantite|floatformat:0 }}</td>
+                            <td><span class="tag success">{{ product.nombre_commandes }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr class="empty-row">
+                            <td colspan="4"><i class="fa-solid fa-chart-bar"></i> Aucune vente ce mois-ci.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Alertes stock -->
+    <div class="panel">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-triangle-exclamation"></i> Alertes de stock</h2>
+            <span class="panel-badge danger">{{ low_stock_items|length }} alerte{{ low_stock_items|length|pluralize }}</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingrédient</th>
+                        <th>Stock actuel</th>
+                        <th>Seuil</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock_items %}
+                        <tr>
+                            <td class="cell-primary">{{ item.ingredient.nom }}</td>
+                            <td><strong style="color:var(--danger)">{{ item.quantite_actuelle|floatformat:2 }}</strong></td>
+                            <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                            <td>
+                                {% if item.quantite_actuelle <= 0 %}
+                                    <span class="tag danger"><span class="alert-dot danger"></span> Rupture</span>
+                                {% else %}
+                                    <span class="tag warning"><span class="alert-dot warning"></span> Critique</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr class="empty-row">
+                            <td colspan="4"><i class="fa-solid fa-check-circle" style="color:var(--success)"></i> Aucune alerte active.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+{% endblock %}
+
+{% block modals %}
+<!-- MODAL: FILTRER LA PÉRIODE -->
+<div id="filter-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Filtrer la période</h3>
+            <button class="modal-close" onclick="closeModal('filter-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="get">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Mois</label>
+                    <select name="month" class="form-control">
+                        <option value="1"  {% if current_month.month == 1  %}selected{% endif %}>Janvier</option>
+                        <option value="2"  {% if current_month.month == 2  %}selected{% endif %}>Février</option>
+                        <option value="3"  {% if current_month.month == 3  %}selected{% endif %}>Mars</option>
+                        <option value="4"  {% if current_month.month == 4  %}selected{% endif %}>Avril</option>
+                        <option value="5"  {% if current_month.month == 5  %}selected{% endif %}>Mai</option>
+                        <option value="6"  {% if current_month.month == 6  %}selected{% endif %}>Juin</option>
+                        <option value="7"  {% if current_month.month == 7  %}selected{% endif %}>Juillet</option>
+                        <option value="8"  {% if current_month.month == 8  %}selected{% endif %}>Août</option>
+                        <option value="9"  {% if current_month.month == 9  %}selected{% endif %}>Septembre</option>
+                        <option value="10" {% if current_month.month == 10 %}selected{% endif %}>Octobre</option>
+                        <option value="11" {% if current_month.month == 11 %}selected{% endif %}>Novembre</option>
+                        <option value="12" {% if current_month.month == 12 %}selected{% endif %}>Décembre</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Année</label>
+                    <input type="number" name="year" value="{{ current_month.year }}" min="2020" max="2030" class="form-control">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('filter-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-filter"></i> Appliquer</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock modals %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// Detect dark mode via CSS variable
+const isDark = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim().startsWith('#1') 
+    || getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() === '#f1f5f9';
+
+const textColor   = getComputedStyle(document.documentElement).getPropertyValue('--text-secondary').trim() || '#64748b';
+const borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e2e8f0';
+const primaryColor = '#6366f1';
+
+Chart.defaults.font.family = "'Outfit', sans-serif";
+Chart.defaults.color = textColor;
+
+const PALETTE = [
+    'rgba(99,102,241,0.85)',
+    'rgba(16,185,129,0.85)',
+    'rgba(245,158,11,0.85)',
+    'rgba(239,68,68,0.85)',
+    'rgba(59,130,246,0.85)',
+    'rgba(168,85,247,0.85)',
+];
+
+// ============ CHART 1 : CA 6 mois (line) ============
+const caLabels = {{ chart_ca_labels|safe }};
+const caValues = {{ chart_ca_values|safe }};
+
+new Chart(document.getElementById('chartCA'), {
+    type: 'line',
+    data: {
+        labels: caLabels,
+        datasets: [{
+            label: 'CA (FCFA)',
+            data: caValues,
+            borderColor: primaryColor,
+            backgroundColor: 'rgba(99,102,241,0.1)',
+            borderWidth: 2.5,
+            pointBackgroundColor: primaryColor,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            fill: true,
+            tension: 0.4,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ' ' + ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA'
+                }
+            }
+        },
+        scales: {
+            x: { grid: { color: borderColor }, ticks: { color: textColor } },
+            y: {
+                grid: { color: borderColor },
+                ticks: {
+                    color: textColor,
+                    callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v
+                }
+            }
+        }
+    }
+});
+
+// ============ CHART 2 : Commandes par type (doughnut) ============
+const typeLabels = {{ chart_type_labels|safe }};
+const typeValues = {{ chart_type_values|safe }};
+
+new Chart(document.getElementById('chartType'), {
+    type: 'doughnut',
+    data: {
+        labels: typeLabels.length ? typeLabels : ['Aucune commande'],
+        datasets: [{
+            data: typeValues.length ? typeValues : [1],
+            backgroundColor: typeValues.length ? PALETTE : ['rgba(200,200,200,0.3)'],
+            borderWidth: 2,
+            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--bg-card').trim() || '#ffffff',
+            hoverOffset: 6,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { color: textColor, padding: 16, font: { size: 12 } }
+            }
+        }
+    }
+});
+
+// ============ CHART 3 : Ventes journalières (bar) ============
+const dailyLabels = {{ chart_daily_labels|safe }};
+const dailyValues = {{ chart_daily_values|safe }};
+
+new Chart(document.getElementById('chartDaily'), {
+    type: 'bar',
+    data: {
+        labels: dailyLabels,
+        datasets: [{
+            label: 'Ventes (FCFA)',
+            data: dailyValues,
+            backgroundColor: 'rgba(16,185,129,0.75)',
+            borderRadius: 4,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => ' ' + ctx.parsed.y.toLocaleString('fr-FR') + ' FCFA'
+                }
+            }
+        },
+        scales: {
+            x: { grid: { display: false }, ticks: { color: textColor } },
+            y: {
+                grid: { color: borderColor },
+                ticks: {
+                    color: textColor,
+                    callback: v => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v
+                }
+            }
+        }
+    }
+});
+
+// ============ CHART 4 : Top produits (horizontal bar) ============
+const topLabels = {{ chart_top_labels|safe }};
+const topValues = {{ chart_top_values|safe }};
+
+new Chart(document.getElementById('chartTop'), {
+    type: 'bar',
+    data: {
+        labels: topLabels.length ? topLabels : ['Aucun produit'],
+        datasets: [{
+            label: 'Quantité vendue',
+            data: topValues.length ? topValues : [0],
+            backgroundColor: PALETTE,
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+        },
+        scales: {
+            x: { grid: { color: borderColor }, ticks: { color: textColor } },
+            y: { grid: { display: false }, ticks: { color: textColor } }
+        }
+    }
+});
+</script>
+{% endblock %}

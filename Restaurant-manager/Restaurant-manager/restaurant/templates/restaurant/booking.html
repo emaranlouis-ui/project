@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L'Étoile — Commande & Réservation en ligne</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'restaurant/app.css' %}">
+    <style>
+        :root {
+            --primary-accent: hsl(14, 100%, 57%);
+            --primary-hover: hsl(14, 85%, 46%);
+            --primary-light: hsl(14, 100%, 95%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            margin: 0;
+            overflow-y: auto !important;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* ===== NAVIGATION ===== */
+        .landing-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: var(--bg-card);
+            border-bottom: 1.5px solid var(--border);
+            padding: 15px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-sm);
+        }
+        .landing-logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .landing-logo span {
+            color: var(--primary-accent);
+        }
+        .landing-nav {
+            display: flex;
+            gap: 25px;
+            align-items: center;
+        }
+        .landing-nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color var(--transition);
+            font-size: 0.95rem;
+        }
+        .landing-nav a:hover, .landing-nav a.active {
+            color: var(--primary-accent);
+        }
+        .nav-btn {
+            background: var(--primary-accent);
+            color: #fff !important;
+            padding: 9px 22px;
+            border-radius: var(--radius-pill);
+            font-weight: 600 !important;
+            transition: all var(--transition) !important;
+        }
+        .nav-btn:hover {
+            background: var(--primary-hover) !important;
+            transform: translateY(-1px);
+        }
+
+        /* ===== BOOKING CONTAINER ===== */
+        .booking-page-padding {
+            padding: 120px 5% 80px;
+        }
+        .booking-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border);
+            padding: 40px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* Menu Catalog Styles */
+        .menu-filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 25px;
+            border-bottom: 1.5px solid var(--border);
+            padding-bottom: 12px;
+        }
+        .filter-tab {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px 18px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all var(--transition);
+            position: relative;
+        }
+        .filter-tab.active {
+            color: var(--primary-accent);
+        }
+        .filter-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -14px;
+            left: 0;
+            right: 0;
+            height: 2.5px;
+            background: var(--primary-accent);
+        }
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            max-height: 700px;
+            overflow-y: auto;
+            padding-right: 8px;
+        }
+        /* Styling scrollbar */
+        .menu-grid::-webkit-scrollbar {
+            width: 6px;
+        }
+        .menu-grid::-webkit-scrollbar-track {
+            background: var(--bg-page);
+            border-radius: var(--radius-sm);
+        }
+        .menu-grid::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: var(--radius-sm);
+        }
+
+        .menu-card {
+            background: var(--bg-page);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            flex-direction: column;
+        }
+        .menu-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary-accent);
+            box-shadow: var(--shadow-md);
+        }
+        .menu-img {
+            height: 180px;
+            position: relative;
+            background: #e2e8f0;
+        }
+        .menu-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .menu-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 10px;
+            border-radius: var(--radius-pill);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        .menu-info {
+            padding: 20px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .menu-info h4 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+        .menu-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 15px;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            height: 36px;
+        }
+        .menu-meta {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .menu-price {
+            font-weight: 800;
+            color: var(--primary-accent);
+            font-size: 1.2rem;
+        }
+        .menu-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* ===== POPUP MODAL (CART) ===== */
+        .cart-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2500;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .cart-modal.active {
+            display: flex;
+        }
+        .cart-modal-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+        }
+        .cart-modal-content {
+            position: relative;
+            background: var(--bg-card);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-md);
+            width: 90%;
+            max-width: 520px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 35px;
+            box-shadow: var(--shadow-lg);
+            z-index: 2501;
+            animation: modalZoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes modalZoomIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .cart-modal-close {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            font-size: 2.2rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            line-height: 1;
+            transition: color var(--transition);
+        }
+        .cart-modal-close:hover {
+            color: var(--primary-accent);
+        }
+        .cart-modal-content h3 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+        }
+
+        .input-group {
+            margin-bottom: 18px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .input-control {
+            width: 100%;
+            background: var(--bg-page);
+            border: 1.5px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all var(--transition);
+            box-sizing: border-box;
+        }
+        .input-control:focus {
+            border-color: var(--primary-accent);
+            outline: none;
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        .empty-selection {
+            text-align: center;
+            padding: 40px 20px;
+            border: 1.5px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+            background: var(--bg-page);
+        }
+
+        /* ===== FLOATING CART BUTTON ===== */
+        .floating-cart {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--primary-accent);
+            color: #fff;
+            padding: 16px 28px;
+            border-radius: var(--radius-pill);
+            box-shadow: 0 10px 30px rgba(249, 115, 22, 0.4);
+            cursor: pointer;
+            z-index: 1500;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: bounceIn 0.5s ease;
+        }
+        .floating-cart:hover {
+            background: var(--primary-hover);
+            transform: scale(1.05) translateY(-3px);
+            box-shadow: 0 15px 35px rgba(249, 115, 22, 0.5);
+        }
+        .floating-cart-icon {
+            font-size: 1.3rem;
+        }
+        .floating-cart-count {
+            background: #fff;
+            color: var(--primary-accent);
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
+        }
+        .floating-cart-total {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 12px;
+            border-radius: var(--radius-pill);
+            font-size: 0.95rem;
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .btn-brand {
+            background: var(--primary-accent);
+            color: #fff;
+            border: none;
+            padding: 13px 30px;
+            border-radius: var(--radius-pill);
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+        .btn-brand:hover {
+            background: var(--primary-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .btn-brand:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.6;
+        }
+
+        /* ===== TESTIMONIALS ===== */
+        .section-padding {
+            padding: 60px 5% 80px;
+        }
+        .section-title {
+            text-align: center;
+            max-width: 600px;
+            margin: 0 auto 50px;
+        }
+        .section-title h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+        .section-title p {
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+        }
+
+        /* ===== FOOTER ===== */
+        .landing-footer {
+            background: var(--bg-card);
+            border-top: 1.5px solid var(--border);
+            padding: 60px 5% 40px;
+        }
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        .footer-col h4 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+        }
+        .footer-col p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+        .footer-bottom {
+            text-align: center;
+            border-top: 1.5px solid var(--border);
+            padding-top: 30px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header Navigation -->
+    <header class="landing-header" id="header">
+        <a href="{% url 'restaurant:landing' %}" class="landing-logo">L'<span>Étoile</span></a>
+        <nav class="landing-nav">
+            <a href="{% url 'restaurant:landing' %}">Accueil</a>
+            <a href="{% url 'restaurant:landing' %}#features">Philosophie</a>
+            <a href="#" class="active">Notre Carte</a>
+            {% if request.user.is_authenticated %}
+                <a href="{% url 'restaurant:pos' %}" style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-gauge"></i> Mon Espace</a>
+            {% else %}
+                <a href="{% url 'login' %}" style="display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-user"></i> Connexion</a>
+            {% endif %}
+            <a href="#" onclick="switchTab('reserve'); document.getElementById('panel-reserve').scrollIntoView({behavior: 'smooth'}); return false;" class="nav-btn">Réserver</a>
+        </nav>
+    </header>
+
+    <!-- Main Booking Section -->
+    <main class="booking-page-padding">
+        <div class="section-title">
+            <h2>Commandes &amp; Réservations</h2>
+            <p>Choisissez votre service et personnalisez votre expérience ci-dessous.</p>
+        </div>
+
+        {% if error %}
+            <div style="background: hsl(0,75%,95%); border:1px solid var(--border); color:var(--danger); padding:15px; border-radius:var(--radius-sm); margin-bottom:30px; max-width:900px; margin-left:auto; margin-right:auto; display:flex; align-items:center; gap:10px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> {{ error }}
+            </div>
+        {% endif %}
+
+        <!-- TABS -->
+        <div style="display:flex; gap:0; max-width:900px; margin:0 auto 30px; border:1.5px solid var(--border); border-radius:var(--radius-md); overflow:hidden;">
+            <button id="tab-order" onclick="switchTab('order')" style="flex:1; padding:14px; font-weight:700; font-size:1rem; border:none; cursor:pointer; background:var(--primary-accent); color:#fff; transition:all .2s;">
+                <i class="fa-solid fa-bag-shopping"></i> Commander en ligne
+            </button>
+            <button id="tab-reserve" onclick="switchTab('reserve')" style="flex:1; padding:14px; font-weight:700; font-size:1rem; border:none; cursor:pointer; background:var(--bg-page); color:var(--text-primary); transition:all .2s;">
+                <i class="fa-solid fa-calendar-check"></i> Réserver une table
+            </button>
+        </div>
+
+        <!-- ===== ONGLET 1 : COMMANDE ===== -->
+        <div id="panel-order" class="booking-container">
+            <div class="menu-filter-bar">
+                <button type="button" class="filter-tab active" onclick="filterMenu('all', this)">Toute la carte</button>
+                <button type="button" class="filter-tab" onclick="filterMenu('Plat', this)">Plats</button>
+                <button type="button" class="filter-tab" onclick="filterMenu('Boisson', this)">Boissons</button>
+            </div>
+            <div class="menu-grid">
+                {% for product in products %}
+                    <div class="menu-card" data-id="{{ product.id }}" data-name="{{ product.nom|escapejs }}" data-price="{{ product.prix }}" data-category="{{ product.description }}"
+                         onclick="addToCart({{ product.id }}, '{{ product.nom|escapejs }}', {{ product.prix }}, this)">
+                        <div class="menu-img">
+                            <img src="{{ product.image }}" alt="{{ product.nom }}">
+                            <span class="menu-badge">{{ product.description }}</span>
+                        </div>
+                        <div class="menu-info">
+                            <h4>{{ product.nom }}</h4>
+                            <p>{{ product.description|default:"Recette signature du chef" }}</p>
+                            <div class="menu-meta">
+                                <span class="menu-price">{{ product.prix }} FCFA</span>
+                                <span class="menu-time"><i class="fa-regular fa-clock"></i> {{ product.duree_cuisson }}</span>
+                            </div>
+                        </div>
+                        <div style="padding:0 20px 20px; display:flex; align-items:center; gap:8px;">
+                            <button type="button" class="add-btn" onclick="event.stopPropagation(); addToCart({{ product.id }}, '{{ product.nom|escapejs }}', {{ product.prix }}, this.closest('.menu-card'))"
+                                style="width:100%; padding:9px; background:var(--primary-accent); color:#fff; border:none; border-radius:20px; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; transition: background .2s;">
+                                <i class="fa-solid fa-plus"></i> Ajouter au panier
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ===== ONGLET 2 : RÉSERVATION TABLE ===== -->
+        <div id="panel-reserve" class="booking-container" style="display:none; max-width:600px; margin:0 auto;">
+            <form method="post" action="{% url 'restaurant:client_reservation' %}">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="table_reservation">
+
+                <h3 style="font-size:1.3rem; font-weight:700; margin-bottom:25px; color:var(--text-primary);">
+                    <i class="fa-solid fa-calendar-check" style="color:var(--primary-accent);"></i> Réserver une table
+                </h3>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Nom complet</label>
+                        <input type="text" name="nom" class="input-control" required placeholder="Ex : Pierre Essomba">
+                    </div>
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>N° Téléphone</label>
+                        <input type="tel" name="tel" class="input-control" required placeholder="Ex : 677 22 33 44">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:15px;">
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Date souhaitée</label>
+                        <input type="date" name="date" class="input-control" required>
+                    </div>
+                    <div class="input-group" style="margin-bottom:0;">
+                        <label>Heure</label>
+                        <input type="time" name="heure" class="input-control" required>
+                    </div>
+                </div>
+
+                <div class="input-group" style="margin-top:15px;">
+                    <label>Nombre de personnes</label>
+                    <select name="nb_personnes" class="input-control">
+                        <option value="1">1 personne</option>
+                        <option value="2" selected>2 personnes</option>
+                        <option value="3">3 personnes</option>
+                        <option value="4">4 personnes</option>
+                        <option value="5">5 personnes</option>
+                        <option value="6">6 personnes</option>
+                        <option value="8">8 personnes</option>
+                        <option value="10">10+ personnes</option>
+                    </select>
+                </div>
+
+                <div class="input-group" style="margin-top:15px;">
+                    <label>Commentaire (optionnel)</label>
+                    <textarea name="commentaire" class="input-control" rows="3" placeholder="Allergie, occasion spéciale, préférence de table..."></textarea>
+                </div>
+
+                <button type="submit" class="btn-brand" style="width:100%; justify-content:center; padding:14px; margin-top:20px;">
+                    <i class="fa-solid fa-calendar-check"></i> Confirmer la réservation
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <!-- ===== FLOATING CHECKOUT BUTTON ===== -->
+    <div id="floating-cart" class="floating-cart" onclick="openCartModal()">
+        <span class="floating-cart-icon"><i class="fa-solid fa-cart-shopping"></i></span>
+        <span id="floating-cart-count" class="floating-cart-count">0</span>
+        <span class="floating-cart-text">Voir le panier</span>
+        <span id="floating-cart-total" class="floating-cart-total">0 FCFA</span>
+    </div>
+
+    <!-- ===== CART MODAL (POPUP) ===== -->
+    <div id="cart-modal" class="cart-modal">
+        <div class="cart-modal-backdrop" onclick="closeCartModal()"></div>
+        <div class="cart-modal-content">
+            <button type="button" class="cart-modal-close" onclick="closeCartModal()">&times;</button>
+            <form method="post" action="{% url 'restaurant:client_reservation' %}" id="order-form">
+                {% csrf_token %}
+                <input type="hidden" name="form_type" value="cart_order">
+                <div id="cart-hidden-fields"></div><!-- JS injects product_ids[] + quantities[] here -->
+
+                <h3><i class="fa-solid fa-cart-shopping" style="color:var(--primary-accent);"></i> Votre Panier</h3>
+
+                <div id="cart-empty" class="empty-selection">
+                    <i class="fa-solid fa-bag-shopping" style="font-size:2rem; margin-bottom:12px; display:block; opacity:.4;"></i>
+                    Votre panier est vide.
+                </div>
+
+                <ul id="cart-list" style="list-style:none; padding:0; margin:0 0 20px; max-height: 250px; overflow-y: auto;"></ul>
+
+                <div id="cart-total-row" style="display:none; justify-content:space-between; font-weight:800; padding:15px 0; border-top:2px solid var(--border); margin-bottom:20px; font-size:1.1rem;">
+                    <span>Total</span>
+                    <span id="cart-total" style="color:var(--primary-accent);">0 FCFA</span>
+                </div>
+
+                <div id="cart-form-fields" style="display:none;">
+                    <div class="input-group">
+                        <label>Type de commande</label>
+                        <select name="type_livraison" class="input-control">
+                            <option value="Sur place">Sur place</option>
+                            <option value="À emporter">À emporter</option>
+                            <option value="En ligne">Livraison</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Mode de paiement</label>
+                        <select name="mode_de_paiement" id="payment-method-select" class="input-control" onchange="togglePaymentMockup()">
+                            <option value="À la livraison">Espèces / À la livraison</option>
+                            <option value="Orange Money">Orange Money (OM)</option>
+                            <option value="MTN Mobile Money">MTN Mobile Money (MoMo)</option>
+                        </select>
+                    </div>
+
+                    <!-- Payment Mobile Money Mockup -->
+                    <div id="momo-payment-mockup" style="display:none; border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 15px; margin-bottom: 18px; background: var(--bg-page); transition: all 0.3s ease;">
+                        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                            <span id="momo-logo-badge" style="padding: 6px 12px; border-radius: 4px; font-weight:800; font-size:0.85rem; color:#fff;">Orange Money</span>
+                            <span style="font-weight:700; font-size:0.95rem;">Paiement Mobile</span>
+                        </div>
+                        <div class="input-group" style="margin-bottom:10px;">
+                            <label>Numéro de téléphone Orange Money / MoMo</label>
+                            <input type="tel" name="momo_phone" id="momo-phone-input" class="input-control" placeholder="Ex : 69x xx xx xx" style="font-family: monospace; font-size: 1.05rem; letter-spacing: 1px;">
+                        </div>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin: 0; line-height:1.4;">
+                            <i class="fa-solid fa-info-circle" style="color:var(--primary-accent);"></i> 
+                            En confirmant, une notification de facturation de <strong id="momo-charge-amount" style="color:var(--primary-accent);">0 FCFA</strong> sera envoyée sur votre mobile Orange Money. Saisissez votre code PIN secret pour confirmer le débit.
+                        </p>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Nom complet</label>
+                        <input type="text" name="nom" class="input-control" required placeholder="Ex : Marie Abena">
+                    </div>
+                    <div class="input-group">
+                        <label>N° Téléphone de contact</label>
+                        <input type="tel" name="tel" class="input-control" required placeholder="Ex : 695 18 37 68">
+                    </div>
+
+                    <button type="submit" id="submit-order-btn" class="btn-brand" style="width:100%; justify-content:center; padding:14px; margin-top:10px;">
+                        <i class="fa-solid fa-check"></i> Confirmer la commande
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="landing-footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>L'Étoile</h4>
+                <p>Une table d'exception où gastronomie et modernité se rencontrent pour le bonheur de vos papilles.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Horaires</h4>
+                <p>Lundi - Samedi : 11h30 - 23h00<br>Dimanche : 12h00 - 22h00</p>
+            </div>
+            <div class="footer-col">
+                <h4>Contact</h4>
+                <p>Yaoundé, Cameroun<br>Tél : +237 695 18 37 68<br>Email : contact@letoile.com</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; 2026 L'Étoile. Tous droits réservés. Conçu pour Easy POS.
+        </div>
+    </footer>
+
+    <script>
+        // ===== TAB SWITCHING =====
+        function switchTab(tab) {
+            const isOrder = tab === 'order';
+            document.getElementById('panel-order').style.display   = isOrder ? '' : 'none';
+            document.getElementById('panel-reserve').style.display = isOrder ? 'none' : '';
+            document.getElementById('tab-order').style.background   = isOrder ? 'var(--primary-accent)' : 'var(--bg-page)';
+            document.getElementById('tab-order').style.color        = isOrder ? '#fff' : 'var(--text-primary)';
+            document.getElementById('tab-reserve').style.background = isOrder ? 'var(--bg-page)' : 'var(--primary-accent)';
+            document.getElementById('tab-reserve').style.color      = isOrder ? 'var(--text-primary)' : '#fff';
+            
+            // Hide floating button when viewing table reservations
+            const floatCart = document.getElementById('floating-cart');
+            if (!isOrder) {
+                floatCart.style.display = 'none';
+            } else {
+                updateFloatingCartVisibility();
+            }
+        }
+
+        // ===== CART MODAL =====
+        function openCartModal() {
+            document.getElementById('cart-modal').classList.add('active');
+            document.body.style.overflow = 'hidden'; // Lock background scroll
+        }
+        function closeCartModal() {
+            document.getElementById('cart-modal').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // ===== CART LOGIC =====
+        const cart = {}; // { productId: { name, price, qty } }
+
+        function addToCart(id, name, price, cardEl) {
+            if (cart[id]) {
+                cart[id].qty += 1;
+            } else {
+                cart[id] = { name, price, qty: 1 };
+            }
+            renderCart();
+            
+            // Pulse animation on the card
+            if (cardEl) {
+                cardEl.style.transform = 'scale(0.98)';
+                setTimeout(() => {
+                    cardEl.style.transform = '';
+                }, 100);
+            }
+        }
+
+        function changeQty(id, delta) {
+            if (!cart[id]) return;
+            cart[id].qty += delta;
+            if (cart[id].qty <= 0) delete cart[id];
+            renderCart();
+        }
+
+        function updateFloatingCartVisibility() {
+            const ids = Object.keys(cart);
+            const floatCart = document.getElementById('floating-cart');
+            const isOrderTab = document.getElementById('panel-order').style.display !== 'none';
+            
+            if (ids.length > 0 && isOrderTab) {
+                floatCart.style.display = 'flex';
+            } else {
+                floatCart.style.display = 'none';
+            }
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cart-list');
+            const emptyMsg = document.getElementById('cart-empty');
+            const totalRow = document.getElementById('cart-total-row');
+            const formFields = document.getElementById('cart-form-fields');
+            const hiddenFields = document.getElementById('cart-hidden-fields');
+
+            const ids = Object.keys(cart);
+            list.innerHTML = '';
+            hiddenFields.innerHTML = '';
+
+            let totalItems = 0;
+            let totalAmount = 0;
+
+            if (ids.length === 0) {
+                emptyMsg.style.display = '';
+                totalRow.style.display = 'none';
+                formFields.style.display = 'none';
+                updateFloatingCartVisibility();
+                closeCartModal();
+                return;
+            }
+
+            emptyMsg.style.display = 'none';
+            totalRow.style.display = 'flex';
+            formFields.style.display = 'block';
+
+            ids.forEach(id => {
+                const item = cart[id];
+                totalAmount += item.price * item.qty;
+                totalItems += item.qty;
+                
+                const li = document.createElement('li');
+                li.style = 'display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px dashed var(--border);';
+                li.innerHTML = `
+                    <div style="flex:1;">
+                        <div style="font-weight:700; font-size:.95rem;">${item.name}</div>
+                        <div style="font-size:.85rem; color:var(--primary-accent);">${item.price.toLocaleString('fr-FR')} FCFA × ${item.qty}</div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <button type="button" onclick="changeQty(${id}, -1)" style="width:28px; height:28px; border-radius:50%; border:1.5px solid var(--border); background:var(--bg-page); font-size:1rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;">−</button>
+                        <span style="font-weight:700; min-width:20px; text-align:center;">${item.qty}</span>
+                        <button type="button" onclick="changeQty(${id}, 1)" style="width:28px; height:28px; border-radius:50%; background:var(--primary-accent); color:#fff; border:none; font-size:1rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;">+</button>
+                    </div>
+                `;
+                list.appendChild(li);
+
+                // Inject hidden fields for form submission
+                const inp1 = document.createElement('input');
+                inp1.type = 'hidden'; inp1.name = 'product_ids[]'; inp1.value = id;
+                const inp2 = document.createElement('input');
+                inp2.type = 'hidden'; inp2.name = 'quantities[]'; inp2.value = item.qty;
+                hiddenFields.appendChild(inp1);
+                hiddenFields.appendChild(inp2);
+            });
+
+            document.getElementById('cart-total').textContent = totalAmount.toLocaleString('fr-FR') + ' FCFA';
+            
+            // Update Floating Cart Button
+            document.getElementById('floating-cart-count').textContent = totalItems;
+            document.getElementById('floating-cart-total').textContent = totalAmount.toLocaleString('fr-FR') + ' FCFA';
+            updateFloatingCartVisibility();
+            if (document.getElementById('payment-method-select')) {
+                togglePaymentMockup();
+            }
+        }
+
+        // ===== PAYMENTS TOGGLE =====
+        function togglePaymentMockup() {
+            const select = document.getElementById('payment-method-select');
+            const mockup = document.getElementById('momo-payment-mockup');
+            const badge = document.getElementById('momo-logo-badge');
+            const phoneInput = document.getElementById('momo-phone-input');
+            const chargeAmt = document.getElementById('momo-charge-amount');
+            
+            if (!select || !mockup) return;
+            
+            const totalVal = document.getElementById('cart-total').textContent;
+            chargeAmt.textContent = totalVal;
+
+            if (select.value === 'Orange Money') {
+                mockup.style.display = 'block';
+                badge.style.background = '#FF6600'; // Orange Money brand color
+                badge.style.color = '#fff';
+                badge.textContent = 'Orange Money';
+                phoneInput.placeholder = 'Ex : 69x xx xx xx';
+                phoneInput.required = true;
+            } else if (select.value === 'MTN Mobile Money') {
+                mockup.style.display = 'block';
+                badge.style.background = '#FFCC00'; // MTN yellow
+                badge.style.color = '#000';
+                badge.textContent = 'MTN MoMo';
+                phoneInput.placeholder = 'Ex : 67x xx xx xx';
+                phoneInput.required = true;
+            } else {
+                mockup.style.display = 'none';
+                phoneInput.required = false;
+            }
+        }
+
+        // ===== MENU FILTER =====
+        function filterMenu(category, tabEl) {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            tabEl.classList.add('active');
+            document.querySelectorAll('.menu-card').forEach(card => {
+                const matches = (category === 'all' || 
+                                 card.dataset.category.toLowerCase().includes(category.toLowerCase()) || 
+                                 (category === 'Plat' && !card.dataset.category.toLowerCase().includes('boisson')));
+                card.style.display = matches ? '' : 'none';
+            });
+        }
+    </script>
+
+</body>
+</html>

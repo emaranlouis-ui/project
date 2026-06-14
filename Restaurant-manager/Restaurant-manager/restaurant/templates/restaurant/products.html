@@ -1,0 +1,268 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Catalogue Produits — Easy POS{% endblock %}
+{% block page_title %}Catalogue des Produits{% endblock %}
+{% block page_sub %}Plats, boissons et compositions{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" placeholder="Rechercher un produit..." oninput="filterTable(this.value, 'products-table')">
+</div>
+{% if request.user.is_superuser %}
+<button class="btn btn-primary" onclick="openModal('add-product-modal')">
+    <i class="fa-solid fa-plus"></i> Ajouter
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="panel full-width">
+    <div class="panel-head">
+        <h2><i class="fa-solid fa-bowl-food"></i> Tous les produits</h2>
+        <span class="panel-badge">{{ products|length }} produit{{ products|length|pluralize }}</span>
+    </div>
+    <div class="table-wrap">
+        <table id="products-table">
+            <thead>
+                <tr>
+                    <th>N°</th>
+                    <th>Nom du produit</th>
+                    <th>Catégorie</th>
+                    <th>Prix</th>
+                    <th>Temps de cuisson</th>
+                    <th>Personnes</th>
+                    <th>Chef responsable</th>
+                    <th>Ingrédients</th>
+                    {% if request.user.is_superuser %}
+                    <th style="text-align:right">Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                    <tr>
+                        <td class="cell-muted">{{ product.id_produit }}</td>
+                        <td class="cell-primary">{{ product.nom }}</td>
+                        <td>
+                            {% if product.description == "Plat" %}
+                                <span class="tag"><i class="fa-solid fa-utensils"></i> Plat</span>
+                            {% elif product.description == "Boisson" %}
+                                <span class="tag info"><i class="fa-solid fa-wine-glass"></i> Boisson</span>
+                            {% else %}
+                                <span class="tag neutral">{{ product.description|default:"—" }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong style="color:var(--primary)">{{ product.prix }} FCFA</strong>
+                        </td>
+                        <td class="cell-muted">
+                            <i class="fa-regular fa-clock" style="color:var(--primary);margin-right:4px"></i>
+                            {{ product.duree_cuisson|default:"—" }}
+                        </td>
+                        <td>
+                            {% if product.nombre_personnes %}
+                                <span class="tag neutral">{{ product.nombre_personnes }} pers.</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td>{{ product.createur|default:"—" }}</td>
+                        <td>
+                            {% for composition in product.compositions.all %}
+                                <span class="tag">{{ composition.ingredient.nom }} <span style="opacity:.6">{{ composition.quantite_utilisee|floatformat:2 }}</span></span>
+                            {% empty %}
+                                <span class="empty">Aucune composition</span>
+                            {% endfor %}
+                        </td>
+                        {% if request.user.is_superuser %}
+                        <td style="text-align:right">
+                            <button class="btn-icon" onclick="openRecipeModal({{ product.id_produit }}, '{{ product.nom|escapejs }}')" title="Gérer la recette">
+                                <i class="fa-solid fa-list-check" style="color:var(--primary)"></i>
+                            </button>
+                            <button class="btn-icon" onclick="openEditModal({{ product.id_produit }}, '{{ product.nom|escapejs }}', '{{ product.description|escapejs }}', '{{ product.duree_cuisson|escapejs }}', '{{ product.nombre_personnes|default_if_none:"" }}', '{{ product.prix|default:2500 }}')" title="Modifier">
+                                <i class="fa-solid fa-pen" style="color:var(--info)"></i>
+                            </button>
+                            <button class="btn-icon" onclick="openDeleteModal({{ product.id_produit }}, '{{ product.nom|escapejs }}')" title="Supprimer">
+                                <i class="fa-solid fa-trash" style="color:var(--danger)"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr class="empty-row">
+                        <td colspan="7"><i class="fa-solid fa-bowl-food"></i>Aucun produit trouvé dans le catalogue.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% if request.user.is_superuser %}
+
+<!-- MODAL: AJOUTER / MODIFIER PRODUIT -->
+<div id="add-product-modal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="modal-product-title">Ajouter un produit</h3>
+            <button class="modal-close" onclick="closeModal('add-product-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:product_crud' %}" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" id="product-action" value="add">
+            <input type="hidden" name="product_id" id="product-id" value="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Nom du produit</label>
+                    <input type="text" name="nom" id="product-nom" required class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Catégorie</label>
+                    <select name="description" id="product-desc" class="form-control">
+                        <option value="Plat">Plat</option>
+                        <option value="Boisson">Boisson</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Temps (ex: 15 mins)</label>
+                        <input type="text" name="duree_cuisson" id="product-time" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Personnes</label>
+                        <input type="number" name="nombre_personnes" id="product-pers" class="form-control" min="1">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Prix (FCFA)</label>
+                        <input type="number" name="prix" id="product-prix" class="form-control" required min="0" value="2500">
+                    </div>
+                    <div class="form-group">
+                        <label>Image du plat</label>
+                        <input type="file" name="image" id="product-image" class="form-control" accept="image/*">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('add-product-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: SUPPRIMER PRODUIT -->
+<div id="delete-product-modal" class="modal-overlay">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3>Confirmer la suppression</h3>
+            <button class="modal-close" onclick="closeModal('delete-product-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:product_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="product_id" id="delete-product-id" value="">
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le produit <strong id="delete-product-name"></strong> ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('delete-product-modal')">Annuler</button>
+                <button type="submit" class="btn btn-danger">Supprimer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: GÉRER RECETTE -->
+<div id="recipe-modal" class="modal-overlay">
+    <div class="modal-content modal-md">
+        <div class="modal-header">
+            <h3>Recette : <span id="recipe-product-name"></span></h3>
+            <button class="modal-close" onclick="closeModal('recipe-modal')"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:product_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_ingredient">
+            <input type="hidden" name="product_id" id="recipe-product-id">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2">
+                        <label>Ingrédient</label>
+                        <select name="ingredient_id" class="form-control" required>
+                            <option value="">-- Sélectionner un ingrédient --</option>
+                            {% for ing in ingredients %}
+                            <option value="{{ ing.id_ingredient }}">{{ ing.nom }} ({{ ing.unite_de_mesure }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex:1">
+                        <label>Quantité</label>
+                        <input type="number" step="0.01" name="quantite_utilisee" class="form-control" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('recipe-modal')">Terminer</button>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter Ingrédient</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock modals %}
+
+{% block extra_js %}
+<script>
+function filterTable(query, tableId) {
+    const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+    query = query.toLowerCase();
+    rows.forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+    });
+}
+
+// Modal logic
+function openModal(id) {
+    document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+}
+
+function openEditModal(id, nom, desc, duree, pers, prix) {
+    document.getElementById('modal-product-title').innerText = "Modifier le produit";
+    document.getElementById('product-action').value = "edit";
+    document.getElementById('product-id').value = id;
+    document.getElementById('product-nom').value = nom;
+    
+    // Fallback logic for category
+    let selectDesc = document.getElementById('product-desc');
+    let optionExists = Array.from(selectDesc.options).some(opt => opt.value === desc);
+    if (!optionExists && desc) {
+        let newOpt = new Option(desc, desc);
+        selectDesc.add(newOpt);
+    }
+    selectDesc.value = desc || 'Plat';
+    
+    document.getElementById('product-time').value = duree;
+    document.getElementById('product-pers').value = pers;
+    if(prix) document.getElementById('product-prix').value = prix;
+    openModal('add-product-modal');
+}
+
+function openDeleteModal(id, nom) {
+    document.getElementById('delete-product-id').value = id;
+    document.getElementById('delete-product-name').innerText = nom;
+    openModal('delete-product-modal');
+}
+
+function openRecipeModal(id, nom) {
+    document.getElementById('recipe-product-id').value = id;
+    document.getElementById('recipe-product-name').textContent = nom;
+    openModal('recipe-modal');
+}
+</script>
+{% endblock %}

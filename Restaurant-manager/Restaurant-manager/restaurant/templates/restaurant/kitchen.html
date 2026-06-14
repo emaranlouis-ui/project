@@ -1,0 +1,290 @@
+{% extends "restaurant/base.html" %}
+{% load static %}
+
+{% block title %}Cuisine — Easy POS{% endblock %}
+{% block page_title %}Cuisine (KDS){% endblock %}
+{% block page_sub %}Système d'affichage cuisine{% endblock %}
+
+{% block extra_css %}
+<style>
+.kitchen-container {
+    padding: 20px;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.kanban-board {
+    display: flex;
+    gap: 20px;
+    height: calc(100vh - 150px);
+    overflow-x: auto;
+    padding-bottom: 20px;
+}
+
+.kanban-column {
+    flex: 0 0 350px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+
+.kanban-header {
+    padding: 15px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: white;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+}
+
+.kanban-header.attente {
+    background: #e74c3c;
+}
+
+.kanban-header.cours {
+    background: #f39c12;
+}
+
+.kanban-body {
+    padding: 15px;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: var(--bg-page);
+}
+
+.ticket-card {
+    background: white;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    border: 1px solid var(--border);
+    padding: 15px;
+    transition: transform 0.2s;
+}
+
+.ticket-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.ticket-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+}
+
+.ticket-id {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+}
+
+.ticket-time {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.ticket-type {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 5px;
+    background: #e1f5fe;
+    color: #0277bd;
+}
+
+.ticket-items {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px 0;
+}
+
+.ticket-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 0.95rem;
+}
+
+.ticket-item:last-child {
+    border-bottom: none;
+}
+
+.item-qty {
+    font-weight: 700;
+    margin-right: 10px;
+    color: var(--primary);
+}
+
+.ticket-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-kitchen {
+    flex: 1;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s;
+}
+
+.btn-start {
+    background: #f1c40f;
+    color: #8e44ad;
+}
+
+.btn-start:hover {
+    background: #f39c12;
+}
+
+.btn-ready {
+    background: var(--success);
+    color: white;
+}
+
+.btn-ready:hover {
+    background: #27ae60;
+}
+
+/* Dark mode fixes for cards */
+[data-theme="dark"] .ticket-card {
+    background: var(--bg-card);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="kitchen-container">
+    <div class="kanban-board">
+        <!-- COLONNE EN ATTENTE -->
+        <div class="kanban-column">
+            <div class="kanban-header attente">
+                <span><i class="fa-solid fa-clock"></i> En attente</span>
+                <span class="badge" style="background: white; color: #e74c3c; border-radius: 12px; padding: 2px 8px; font-size: 0.8rem;">{{ pending_orders|length }}</span>
+            </div>
+            <div class="kanban-body">
+                {% for cmd in pending_orders %}
+                    {% if cmd.statut_cuisine == 'En attente' %}
+                    <div class="ticket-card" id="ticket-{{ cmd.id_commande }}">
+                        <div class="ticket-header">
+                            <div>
+                                <div class="ticket-id">#{{ cmd.id_commande }}</div>
+                                <div class="ticket-type"><i class="fa-solid fa-utensils"></i> {{ cmd.type_commande }}</div>
+                            </div>
+                            <div class="ticket-time">{{ cmd.date|date:"H:i" }}</div>
+                        </div>
+                        <ul class="ticket-items">
+                            {% for ligne in cmd.lignes.all %}
+                            <li class="ticket-item">
+                                <span><span class="item-qty">{{ ligne.quantite|floatformat:0 }}x</span> {{ ligne.produit.nom }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <div class="ticket-actions">
+                            <button class="btn-kitchen btn-start" onclick="updateOrderStatus({{ cmd.id_commande }}, 'En cours')">
+                                <i class="fa-solid fa-fire-burner"></i> Préparer
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                {% if not pending_orders %}
+                    <div style="text-align: center; color: var(--text-muted); margin-top: 20px;">
+                        <i class="fa-solid fa-check-circle fa-3x" style="margin-bottom: 10px; opacity: 0.2;"></i>
+                        <p>Aucune commande en attente</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- COLONNE EN COURS -->
+        <div class="kanban-column">
+            <div class="kanban-header cours">
+                <span><i class="fa-solid fa-fire-burner"></i> En cours</span>
+            </div>
+            <div class="kanban-body">
+                {% for cmd in pending_orders %}
+                    {% if cmd.statut_cuisine == 'En cours' %}
+                    <div class="ticket-card" id="ticket-{{ cmd.id_commande }}">
+                        <div class="ticket-header">
+                            <div>
+                                <div class="ticket-id">#{{ cmd.id_commande }}</div>
+                                <div class="ticket-type"><i class="fa-solid fa-utensils"></i> {{ cmd.type_commande }}</div>
+                            </div>
+                            <div class="ticket-time">{{ cmd.date|date:"H:i" }}</div>
+                        </div>
+                        <ul class="ticket-items">
+                            {% for ligne in cmd.lignes.all %}
+                            <li class="ticket-item">
+                                <span><span class="item-qty">{{ ligne.quantite|floatformat:0 }}x</span> {{ ligne.produit.nom }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        <div class="ticket-actions">
+                            <button class="btn-kitchen btn-ready" onclick="updateOrderStatus({{ cmd.id_commande }}, 'Prête')">
+                                <i class="fa-solid fa-bell-concierge"></i> Prête
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const csrfToken = '{{ csrf_token }}';
+
+    function updateOrderStatus(orderId, newStatus) {
+        fetch("{% url 'restaurant:update_order_status' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                order_id: orderId,
+                status: newStatus
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the ticket and reload the page or do partial DOM updates.
+                // Reloading is simpler and ensures fresh state for now.
+                window.location.reload();
+            } else {
+                alert("Erreur: " + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert("Erreur réseau");
+        });
+    }
+
+    // Refresh automatically every 30 seconds to fetch new orders
+    setInterval(() => {
+        window.location.reload();
+    }, 30000);
+</script>
+{% endblock %}

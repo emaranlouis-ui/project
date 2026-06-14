@@ -1,0 +1,360 @@
+{% extends "restaurant/base.html" %}
+{% load static %}
+
+{% block title %}Caisse — Easy POS{% endblock %}
+{% block page_title %}Caisse POS{% endblock %}
+{% block page_sub %}Système de point de vente{% endblock %}
+
+{% block extra_css %}
+<style>
+/* POS — force page-body à ne pas scroller ni ajouter de padding */
+.page-body {
+    padding: 0 !important;
+    overflow: hidden !important;
+    gap: 0 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pos-wrapper">
+    <!-- SECTION PRODUITS -->
+    <section class="pos-products-section" style="flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--border);">
+        <!-- Filtres catégories -->
+        <div class="subcategory-pills" style="padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; overflow-x: auto;">
+            <button class="pill-btn active" data-sub="all">Tous</button>
+            <button class="pill-btn" data-sub="Plat">Plats</button>
+            <button class="pill-btn" data-sub="Boisson">Boissons</button>
+            <button class="pill-btn" data-sub="Poulet">Poulet</button>
+            <button class="pill-btn" data-sub="Riz">Riz</button>
+            <button class="pill-btn" data-sub="Jus">Jus</button>
+        </div>
+
+        <!-- Grille produits -->
+        <div class="products-grid" style="flex: 1; overflow-y: auto; padding: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px;">
+            {% for product in products %}
+                <div class="product-card" 
+                     data-id="{{ product.id }}" 
+                     data-name="{{ product.nom }}"
+                     data-price="{{ product.prix|default:0|floatformat:0 }}"
+                     data-category="{{ product.description }}"
+                     data-image="{{ product.image }}"
+                     style="background: white; border-radius: var(--radius-md); border: 1.5px solid var(--border); overflow: hidden; cursor: pointer; transition: all var(--t-bounce);">
+                    
+                    <div class="product-img-wrapper" style="height: 140px; background: var(--bg-page); position: relative; overflow: hidden;">
+                        {% if product.image %}
+                            <img src="{{ product.image }}" alt="{{ product.nom }}" style="width: 100%; height: 100%; object-fit: cover;">
+                        {% else %}
+                            <div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-muted);">
+                                <i class="fa-solid fa-image fa-2x"></i>
+                            </div>
+                        {% endif %}
+                        <span class="product-time" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.6); color: white; padding: 2px 8px; border-radius: var(--radius-pill); font-size: 0.75rem; backdrop-filter: blur(4px);">
+                            <i class="fa-regular fa-clock"></i> {{ product.duree_cuisson|default:"—" }}
+                        </span>
+                    </div>
+                    
+                    <div class="product-info" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
+                        <h3 style="font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--text-primary);">{{ product.nom }}</h3>
+                        <p class="product-desc" style="font-size: 0.8rem; color: var(--text-muted); margin: 0;">{{ product.description|default:"—" }}</p>
+                        <div class="product-meta" style="display: flex; justify-content: space-between; align-items: center; margin-top: auto;">
+                            <span class="product-price" style="font-weight: 700; color: var(--primary); font-size: 1rem;">{{ product.prix|default:0|floatformat:0 }} FCFA</span>
+                            <button class="btn-add-product" data-id="{{ product.id }}" style="background: var(--primary); color: white; border: none; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all var(--transition);">
+                                <i class="fa-solid fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">
+                    <i class="fa-solid fa-utensils fa-3x" style="opacity: 0.3; margin-bottom: 15px;"></i>
+                    <p>Aucun produit disponible.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- SECTION PANIER (Droite) -->
+    <aside class="pos-sidebar-right" style="width: 340px; min-height: 0; background: var(--bg-card); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;">
+        
+        <!-- En-tête ticket -->
+        <div class="ticket-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.8rem;">
+                <span style="color: var(--text-secondary);">Facture: <strong id="lbl-invoice-number" style="color: var(--text-primary);">#----</strong></span>
+                <span id="lbl-invoice-date" style="color: var(--text-muted);">--/--/---- --:--</span>
+                <button class="btn-close-cart-mobile" id="btn-close-cart-mobile" style="display: none; background: none; border: none; font-size: 1.25rem; color: var(--text-muted); cursor: pointer; padding: 0 4px;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 800; color: var(--text-primary);"><span style="color: var(--primary);">Easy</span> POS</span>
+                <span id="lbl-order-id" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Commande: #----</span>
+            </div>
+        </div>
+
+        <!-- Contrôles Commande -->
+        <div class="ticket-controls" style="flex-shrink: 0; padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
+            <div class="control-group">
+                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;"><i class="fa-solid fa-chair" style="margin-right: 5px;"></i> Table</label>
+                <select id="select-table" style="width: 100%; padding: 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); margin-top: 4px; font-family: inherit; font-size: 0.9rem;">
+                    <option value="">Sélectionner une table</option>
+                    {% for table in tables %}
+                        <option value="{{ table.id_table }}">Table {{ table.numero_table }} (Cap. {{ table.capacite }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="control-group">
+                <label style="font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;"><i class="fa-solid fa-user" style="margin-right: 5px;"></i> Client</label>
+                <select id="select-client" style="width: 100%; padding: 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); margin-top: 4px; font-family: inherit; font-size: 0.9rem;">
+                    <option value="">Client Anonyme</option>
+                    {% for client in clients %}
+                        <option value="{{ client.id_client }}">{{ client.prenom }} {{ client.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Liste des articles -->
+        <div class="cart-items-wrapper" style="flex: 1; min-height: 0; overflow-y: auto; padding: 15px 20px;">
+            <div class="cart-empty-msg visible">
+                <i class="fa-solid fa-cart-shopping fa-3x" style="opacity: 0.3; margin-bottom: 15px;"></i>
+                <p>Votre panier est vide</p>
+            </div>
+            <ul class="cart-items-list" id="cart-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px;">
+                <!-- Rempli par JavaScript -->
+            </ul>
+        </div>
+
+        <!-- Résumé et Paiement -->
+        <div class="cart-summary" style="flex-shrink: 0; padding: 15px 20px; border-top: 1px solid var(--border); background: var(--bg-page);">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem;">
+                <span style="color: var(--text-secondary);">Mode de paiement</span>
+                <select id="select-payment" style="padding: 4px 8px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-family: inherit;">
+                    <option value="Espèces">Espèces</option>
+                    <option value="Orange Money">Orange Money</option>
+                    <option value="MTN MoMo">MTN MoMo</option>
+                    <option value="Carte Bancaire">Carte Bancaire</option>
+                </select>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; color: var(--text-secondary);">
+                <span>Articles</span>
+                <strong id="lbl-total-items" style="color: var(--text-primary);">0</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 0.85rem; color: var(--text-secondary);">
+                <span>Quantité totale</span>
+                <strong id="lbl-total-quantity" style="color: var(--text-primary);">0</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding-top: 15px; border-top: 1.5px dashed var(--border);">
+                <span style="font-weight: 700; font-size: 1rem;">Total</span>
+                <strong id="lbl-total-amount" style="font-weight: 800; font-size: 1.4rem; color: var(--primary);">0 FCFA</strong>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="cart-actions" style="flex-shrink: 0; padding: 15px 20px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--bg-page);">
+            <button class="btn" id="btn-print-invoice" style="width: 100%; background: white; border: 1.5px solid var(--border); color: var(--text-primary); padding: 12px; font-size: 0.95rem;">
+                <i class="fa-solid fa-print"></i> Imprimer Ticket
+            </button>
+            <button class="btn btn-success" id="btn-payments" style="width: 100%; padding: 12px; font-size: 1rem;">
+                <i class="fa-solid fa-wallet"></i> Encaisser
+            </button>
+        </div>
+    </aside>
+</div>
+
+<!-- Mobile layout elements -->
+<div id="cart-overlay" class="cart-overlay"></div>
+<button id="btn-toggle-cart" class="mobile-cart-fab">
+    <i class="fa-solid fa-cart-shopping"></i>
+    <span class="mobile-cart-badge" id="mobile-cart-badge">0</span>
+    <span class="mobile-cart-total" id="mobile-cart-total">0 FCFA</span>
+</button>
+
+<input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'restaurant/pos.js' %}"></script>
+<style>
+
+.pos-page-body-override {
+    padding: 0 !important;
+    overflow: hidden !important;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.pos-wrapper {
+    display: flex;
+    gap: 0;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+    padding: 16px;
+    gap: 16px;
+    background: var(--bg-page);
+}
+
+/* Floating Action Button (FAB) for Mobile Cart */
+.mobile-cart-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 24px;
+    font-family: inherit;
+    font-weight: 700;
+    box-shadow: 0 8px 24px rgba(254, 87, 34, 0.4);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all var(--t-bounce);
+    border: 2px solid white;
+}
+
+.mobile-cart-fab:hover {
+    transform: scale(1.05);
+    background: var(--primary-dark);
+}
+
+.mobile-cart-badge {
+    background: white;
+    color: var(--primary);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+}
+
+.mobile-cart-total {
+    font-size: 0.9rem;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    padding-left: 10px;
+}
+
+/* Mobile Sidebar Drawer Overlay */
+.cart-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 1001;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(3px);
+}
+.cart-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+@media (max-width: 1080px) {
+    .pos-wrapper {
+        flex-direction: column !important;
+        height: auto !important;
+        overflow: visible !important;
+        margin: 0 !important;
+    }
+    
+    .mobile-cart-fab {
+        display: flex;
+    }
+
+    .pos-sidebar-right {
+        position: fixed !important;
+        top: 0;
+        right: -360px; /* Hidden off-screen */
+        bottom: 0;
+        width: 340px !important;
+        height: 100% !important;
+        z-index: 1002;
+        transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: -8px 0 32px rgba(0,0,0,0.15) !important;
+        background: var(--bg-card) !important;
+    }
+
+    .pos-sidebar-right.open {
+        right: 0 !important;
+    }
+
+    .btn-close-cart-mobile {
+        display: block !important;
+    }
+}
+
+.cart-empty-msg {
+    display: none;
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.cart-empty-msg.visible {
+    display: flex !important;
+}
+
+.cart-items-wrapper {
+    min-height: 0;
+}
+
+.cart-items-wrapper::-webkit-scrollbar {
+    width: 6px;
+}
+.cart-items-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: var(--radius-pill);
+}
+.cart-items-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.pill-btn {
+    padding: 8px 16px;
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+}
+.pill-btn:hover { border-color: var(--primary); color: var(--primary); }
+.pill-btn.active { background: var(--primary); border-color: var(--primary); color: white; box-shadow: 0 3px 10px hsla(14, 100%, 57%, 0.3); }
+
+.product-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md) !important; border-color: var(--border) !important; }
+.product-card.selected { border-color: var(--primary) !important; box-shadow: 0 0 0 3px hsla(14, 100%, 57%, 0.15) !important; }
+
+.cart-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: white; border-radius: var(--radius-sm); border: 1px solid var(--border); animation: slideIn 0.2s ease-out; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+.cart-item-img { width: 40px; height: 40px; border-radius: var(--radius-sm); object-fit: cover; flex-shrink: 0; }
+.cart-item-details { flex: 1; min-width: 0; }
+.cart-item-name { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-item-price-unit { font-size: 0.75rem; color: var(--text-muted); }
+.cart-item-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+.cart-item-total { font-size: 0.9rem; font-weight: 700; color: var(--primary); }
+.cart-item-controls { display: flex; align-items: center; gap: 6px; }
+.qty-btn { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid var(--border); background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: var(--text-primary); padding: 0; }
+.qty-btn:hover { border-color: var(--primary); color: var(--primary); }
+.qty-btn.qty-minus { color: var(--danger); }
+.qty-btn.qty-minus:hover { border-color: var(--danger); }
+.qty-display { min-width: 20px; text-align: center; font-size: 0.85rem; font-weight: 700; }
+.cart-item-delete { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 0.85rem; padding: 4px; transition: color var(--transition); }
+.cart-item-delete:hover { color: var(--danger); }
+</style>
+{% endblock %}

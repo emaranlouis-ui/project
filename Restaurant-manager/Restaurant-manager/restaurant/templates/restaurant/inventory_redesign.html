@@ -1,0 +1,675 @@
+{% extends "restaurant/base.html" %}
+
+{% block title %}Gestion du Stock — Easy POS{% endblock %}
+{% block page_title %}Gestion du Stock{% endblock %}
+{% block page_sub %}Inventaire en temps réel · Alertes · Approvisionnements · Fournisseurs{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   STOCK PAGE — Premium Styles
+   ============================================================ */
+
+/* KPI Row */
+.stock-kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 16px;
+    margin-bottom: 4px;
+}
+
+/* Alert Banner */
+.alert-banner {
+    background: linear-gradient(135deg, hsl(0,75%,97%) 0%, hsl(0,75%,95%) 100%);
+    border: 1.5px solid hsl(0,75%,88%);
+    border-left: 4px solid var(--danger);
+    border-radius: var(--radius-md);
+    padding: 0;
+    overflow: hidden;
+    animation: fadeInUp .35s ease both;
+}
+
+.alert-banner-head {
+    padding: 16px 22px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid hsl(0,75%,88%);
+}
+
+.alert-banner-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: .95rem;
+    color: hsl(0,75%,35%);
+}
+
+.alert-banner-title i { font-size: 1.1rem; animation: pulse-warn 1.8s ease infinite; }
+@keyframes pulse-warn {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.65; transform:scale(1.15); }
+}
+
+/* Section Label */
+.section-label {
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+}
+
+/* Ingredient avatar */
+.ing-avatar {
+    width: 32px; height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: .78rem;
+    flex-shrink: 0;
+}
+.ing-avatar.danger  { background: hsl(0,75%,95%);   color: var(--danger);  }
+.ing-avatar.warning { background: hsl(40,100%,93%);  color: var(--warning); }
+.ing-avatar.success { background: hsl(145,60%,93%);  color: var(--success); }
+
+/* Cell with avatar */
+.cell-with-avatar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Quantity badge */
+.qty-badge {
+    font-size: .82rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--bg-page);
+    border: 1.5px solid var(--border);
+    color: var(--text-primary);
+}
+
+/* Enhanced stock bar */
+.stock-bar-wrap { min-width: 130px; }
+.stock-bar-label {
+    font-size: .73rem;
+    font-weight: 600;
+    min-width: 38px;
+    text-align: right;
+    color: var(--text-secondary);
+}
+
+/* Supplier card */
+.supplier-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    padding: 18px 22px;
+}
+
+.supplier-card {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color var(--transition), box-shadow var(--transition), transform var(--t-bounce);
+    background: var(--bg-page);
+}
+.supplier-card:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 16px hsla(14,100%,57%,.12);
+    transform: translateY(-2px);
+}
+
+.supplier-name {
+    font-weight: 700;
+    font-size: .92rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.supplier-name i { color: var(--primary); font-size: .85rem; }
+
+.supplier-detail {
+    font-size: .79rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.supplier-detail i { width: 14px; text-align: center; }
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+}
+.empty-state i {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    opacity: .3;
+    display: block;
+}
+.empty-state p { font-size: .9rem; }
+
+/* Variation icon */
+.var-icon {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .78rem;
+    flex-shrink: 0;
+}
+.var-icon.in  { background: hsl(145,60%,93%); color: var(--success); }
+.var-icon.out { background: hsl(0,75%,95%);   color: var(--danger);  }
+
+/* Page fade-in stagger for panels */
+.panel:nth-child(1) { animation-delay: .05s; }
+.panel:nth-child(2) { animation-delay: .10s; }
+.panel:nth-child(3) { animation-delay: .15s; }
+.panel:nth-child(4) { animation-delay: .20s; }
+.panel:nth-child(5) { animation-delay: .25s; }
+.stock-kpi-row .kpi-card:nth-child(1) { animation-delay: .04s; }
+.stock-kpi-row .kpi-card:nth-child(2) { animation-delay: .08s; }
+.stock-kpi-row .kpi-card:nth-child(3) { animation-delay: .12s; }
+.stock-kpi-row .kpi-card:nth-child(4) { animation-delay: .16s; }
+
+/* Table row action */
+.row-actions { display: flex; gap: 4px; opacity: 0; transition: opacity var(--transition); }
+tbody tr:hover .row-actions { opacity: 1; }
+
+/* Scrollable table panels */
+.panel-scrollable .table-wrap { max-height: 340px; overflow-y: auto; }
+</style>
+{% endblock %}
+
+{% block page_actions %}
+<div class="search-bar">
+    <i class="fa-solid fa-magnifying-glass"></i>
+    <input type="text" id="stock-search-input" placeholder="Rechercher un ingrédient..." oninput="filterTable(this.value, 'stock-table')">
+</div>
+{% if perms.restaurant.change_stock %}
+<button class="btn btn-primary" onclick="openModal('add-appro-modal')" id="btn-new-appro">
+    <i class="fa-solid fa-plus"></i> Réapprovisionner
+</button>
+<button class="btn btn-outline" onclick="openModal('add-fournisseur-modal')" id="btn-new-supplier">
+    <i class="fa-solid fa-truck-moving"></i> Fournisseur
+</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<!-- ===== KPI SUMMARY ===== -->
+<div class="stock-kpi-row">
+    <div class="kpi-card">
+        <div class="kpi-label"><i class="fa-solid fa-cubes"></i> Total ingrédients</div>
+        <div class="kpi-value">{{ stocks|length }}</div>
+        <div class="kpi-sub">en inventaire</div>
+    </div>
+    <div class="kpi-card {% if low_stock_items %}warning{% else %}success{% endif %}">
+        <div class="kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Alertes critiques</div>
+        <div class="kpi-value">{{ low_stock_items|length }}</div>
+        <div class="kpi-sub">{% if low_stock_items %}nécessite attention{% else %}stock sain{% endif %}</div>
+    </div>
+    <div class="kpi-card info">
+        <div class="kpi-label"><i class="fa-solid fa-truck-moving"></i> Fournisseurs</div>
+        <div class="kpi-value">{{ fournisseurs|length }}</div>
+        <div class="kpi-sub">actifs</div>
+    </div>
+    <div class="kpi-card success">
+        <div class="kpi-label"><i class="fa-solid fa-boxes-packing"></i> Approvisionnements</div>
+        <div class="kpi-value">{{ approvisionnements|length }}</div>
+        <div class="kpi-sub">récents</div>
+    </div>
+</div>
+
+<!-- ===== ALERT BANNER ===== -->
+{% if low_stock_items %}
+<div class="alert-banner">
+    <div class="alert-banner-head">
+        <div class="alert-banner-title">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            {{ low_stock_items|length }} alerte{{ low_stock_items|length|pluralize }} de stock critique
+        </div>
+        <span class="panel-badge danger">Action requise</span>
+    </div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Ingrédient</th>
+                    <th>Quantité actuelle</th>
+                    <th>Seuil d'alerte</th>
+                    <th>Unité</th>
+                    <th>Niveau</th>
+                    <th>Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for item in low_stock_items %}
+                <tr>
+                    <td>
+                        <div class="cell-with-avatar">
+                            <div class="ing-avatar {% if item.quantite_actuelle <= 0 %}danger{% else %}warning{% endif %}">
+                                {{ item.ingredient.nom|first|upper }}
+                            </div>
+                            <strong>{{ item.ingredient.nom }}</strong>
+                        </div>
+                    </td>
+                    <td><span class="qty-badge" style="border-color:var(--danger);color:var(--danger);">{{ item.quantite_actuelle|floatformat:2 }}</span></td>
+                    <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                    <td class="cell-muted">{{ item.ingredient.unite_de_mesure }}</td>
+                    <td>
+                        <div class="stock-bar-wrap">
+                            <div class="stock-bar">
+                                <div class="stock-bar-fill danger" style="width: {% if item.seuil_alerte %}{% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 %}{% else %}0{% endif %}%;"></div>
+                            </div>
+                            <span class="stock-bar-label">
+                                {% if item.seuil_alerte %}{% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 %}{% else %}0{% endif %}%
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if item.quantite_actuelle <= 0 %}
+                            <span class="tag danger"><i class="fa-solid fa-ban"></i> Rupture</span>
+                        {% else %}
+                            <span class="tag warning"><i class="fa-solid fa-exclamation"></i> Critique</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- ===== TWO-COLUMN GRID ===== -->
+<div class="panels-grid">
+
+    <!-- Card: Stock complet (full-width) -->
+    <div class="panel full-width" style="grid-column: 1 / -1;">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-layer-group"></i> État complet du stock</h2>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span class="panel-badge">{{ stocks|length }} ingrédient{{ stocks|length|pluralize }}</span>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table id="stock-table">
+                <thead>
+                    <tr>
+                        <th>Ingrédient</th>
+                        <th>Type</th>
+                        <th>Quantité actuelle</th>
+                        <th>Seuil d'alerte</th>
+                        <th>Unité</th>
+                        <th>Niveau de stock</th>
+                        <th>Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for item in stocks %}
+                    {% if item.seuil_alerte and item.seuil_alerte > 0 %}
+                        {% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 as pct %}
+                    {% else %}
+                        {% with pct=100 %}{% endwith %}
+                    {% endif %}
+                    <tr>
+                        <td>
+                            <div class="cell-with-avatar">
+                                <div class="ing-avatar {% if item.quantite_actuelle <= 0 %}danger{% elif item.seuil_alerte and item.quantite_actuelle <= item.seuil_alerte %}warning{% else %}success{% endif %}">
+                                    {{ item.ingredient.nom|first|upper }}
+                                </div>
+                                <div>
+                                    <div class="cell-primary">{{ item.ingredient.nom }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="tag neutral">{{ item.ingredient.type_ingredient|default:"—" }}</span></td>
+                        <td>
+                            <span class="qty-badge {% if item.quantite_actuelle <= 0 %}border-danger{% endif %}">
+                                {{ item.quantite_actuelle|floatformat:2 }}
+                            </span>
+                        </td>
+                        <td class="cell-muted">{{ item.seuil_alerte|floatformat:2 }}</td>
+                        <td class="cell-muted">{{ item.ingredient.unite_de_mesure }}</td>
+                        <td>
+                            {% if item.seuil_alerte and item.seuil_alerte > 0 %}
+                                {% widthratio item.quantite_actuelle|default:0 item.seuil_alerte 100 as pct_val %}
+                                <div class="stock-bar-wrap">
+                                    <div class="stock-bar">
+                                        <div class="stock-bar-fill {% if pct_val <= 50 %}danger{% elif pct_val <= 100 %}warning{% else %}success{% endif %}"
+                                             style="width: {% if pct_val > 100 %}100{% else %}{{ pct_val }}{% endif %}%;"></div>
+                                    </div>
+                                    <span class="stock-bar-label">{% if pct_val > 100 %}100{% else %}{{ pct_val }}{% endif %}%</span>
+                                </div>
+                            {% else %}
+                                <div class="stock-bar-wrap">
+                                    <div class="stock-bar">
+                                        <div class="stock-bar-fill success" style="width:100%;"></div>
+                                    </div>
+                                    <span class="stock-bar-label">—</span>
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.quantite_actuelle <= 0 %}
+                                <span class="tag danger"><i class="fa-solid fa-ban"></i> Rupture</span>
+                            {% elif item.seuil_alerte and item.quantite_actuelle <= item.seuil_alerte %}
+                                <span class="tag warning"><i class="fa-solid fa-exclamation"></i> Critique</span>
+                            {% else %}
+                                <span class="tag success"><i class="fa-solid fa-check"></i> Normal</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-cubes"></i>
+                                <p>Aucun stock enregistré pour le moment.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Card: Historique des variations -->
+    <div class="panel panel-scrollable">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-clock-rotate-left"></i> Historique des variations</h2>
+            <span class="panel-badge">{{ variations|length }} entrée{{ variations|length|pluralize }}</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Ingrédient</th>
+                        <th>Mouvement</th>
+                        <th>Quantité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for var in variations %}
+                    <tr>
+                        <td class="cell-muted" style="white-space:nowrap;">{{ var.date|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="cell-with-avatar">
+                                <div class="var-icon {% if var.type_variation == 'Sortie' %}out{% else %}in{% endif %}">
+                                    <i class="fa-solid {% if var.type_variation == 'Sortie' %}fa-arrow-down{% else %}fa-arrow-up{% endif %}"></i>
+                                </div>
+                                <span class="cell-primary">{{ var.ingredient.nom }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            {% if var.type_variation == "Sortie" %}
+                                <span class="tag danger">Sortie</span>
+                            {% else %}
+                                <span class="tag success">Entrée</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ var.quantite|floatformat:2 }}</strong>
+                            <span class="cell-muted">{{ var.ingredient.unite_de_mesure }}</span>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-clock-rotate-left"></i>
+                                <p>Aucune variation récente.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Card: Approvisionnements récents -->
+    <div class="panel panel-scrollable">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-boxes-packing"></i> Approvisionnements récents</h2>
+            <span class="panel-badge success">{{ approvisionnements|length }} livraison{{ approvisionnements|length|pluralize }}</span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Ingrédient</th>
+                        <th>Fournisseur</th>
+                        <th>Quantité</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for app in approvisionnements %}
+                    <tr>
+                        <td class="cell-muted" style="white-space:nowrap;">{{ app.date|date:"d/m/Y" }}</td>
+                        <td class="cell-primary">{{ app.ingredient.nom }}</td>
+                        <td>
+                            <span class="tag neutral"><i class="fa-solid fa-truck"></i> {{ app.fournisseur.nom }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ app.quantite|floatformat:2 }}</strong>
+                            <span class="cell-muted">{{ app.ingredient.unite_de_mesure }}</span>
+                        </td>
+                        <td><strong style="color:var(--success);">{{ app.prix_unitaire|default:0|floatformat:0 }} FCFA</strong></td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fa-solid fa-boxes-packing"></i>
+                                <p>Aucun approvisionnement récent.</p>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Card: Fournisseurs (full-width grid of cards) -->
+    <div class="panel" style="grid-column: 1 / -1;">
+        <div class="panel-head">
+            <h2><i class="fa-solid fa-truck-moving"></i> Fournisseurs</h2>
+            <span class="panel-badge info">{{ fournisseurs|length }} fournisseur{{ fournisseurs|length|pluralize }}</span>
+        </div>
+        {% if fournisseurs %}
+        <div class="supplier-grid">
+            {% for four in fournisseurs %}
+            <div class="supplier-card">
+                <div class="supplier-name">
+                    <i class="fa-solid fa-building-columns"></i>
+                    {{ four.nom }}
+                </div>
+                {% if four.tel %}
+                <div class="supplier-detail">
+                    <i class="fa-solid fa-phone"></i>
+                    {{ four.tel }}
+                </div>
+                {% endif %}
+                {% if four.adresse %}
+                <div class="supplier-detail">
+                    <i class="fa-solid fa-location-dot"></i>
+                    {{ four.adresse }}
+                </div>
+                {% endif %}
+                {% if not four.tel and not four.adresse %}
+                <div class="supplier-detail"><i class="fa-solid fa-circle-info"></i> Aucun détail renseigné</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fa-solid fa-truck-moving"></i>
+            <p>Aucun fournisseur enregistré. Ajoutez-en un pour commencer.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div><!-- /panels-grid -->
+{% endblock %}
+
+{% block modals %}
+{% if perms.restaurant.change_stock %}
+<!-- MODAL: ADD FOURNISSEUR -->
+<div id="add-fournisseur-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-supplier-title">
+    <div class="modal-content modal-sm">
+        <div class="modal-header">
+            <h3 id="modal-supplier-title"><i class="fa-solid fa-truck-moving" style="color:var(--primary);"></i> Nouveau Fournisseur</h3>
+            <button class="modal-close" onclick="closeModal('add-fournisseur-modal')" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:inventory_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_fournisseur">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="fournisseur-nom">Nom du fournisseur <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="fournisseur-nom" name="nom" class="form-control" placeholder="ex: Marché Central" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fournisseur-tel">Téléphone</label>
+                        <input type="text" id="fournisseur-tel" name="tel" class="form-control" placeholder="ex: +237 6xx xxx xxx">
+                    </div>
+                    <div class="form-group">
+                        <label for="fournisseur-adresse">Adresse</label>
+                        <input type="text" id="fournisseur-adresse" name="adresse" class="form-control" placeholder="ex: Yaoundé, Mfoundi">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('add-fournisseur-modal')">Annuler</button>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-check"></i> Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: ADD APPROVISIONNEMENT -->
+<div id="add-appro-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-appro-title">
+    <div class="modal-content modal-md">
+        <div class="modal-header">
+            <h3 id="modal-appro-title"><i class="fa-solid fa-boxes-packing" style="color:var(--success);"></i> Nouvel Approvisionnement</h3>
+            <button class="modal-close" onclick="closeModal('add-appro-modal')" aria-label="Fermer"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form method="post" action="{% url 'restaurant:inventory_crud' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_approvisionnement">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appro-ingredient">Ingrédient <span style="color:var(--danger)">*</span></label>
+                        <select id="appro-ingredient" name="ingredient_id" class="form-control" required>
+                            <option value="">— Sélectionner un ingrédient —</option>
+                            {% for item in stocks %}
+                                <option value="{{ item.ingredient.pk }}">{{ item.ingredient.nom }} ({{ item.ingredient.unite_de_mesure }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="appro-fournisseur">Fournisseur <span style="color:var(--danger)">*</span></label>
+                        <select id="appro-fournisseur" name="fournisseur_id" class="form-control" required>
+                            <option value="">— Sélectionner un fournisseur —</option>
+                            {% for four in fournisseurs %}
+                                <option value="{{ four.pk }}">{{ four.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="appro-quantite">Quantité reçue <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="appro-quantite" step="0.01" min="0.01" name="quantite" class="form-control" placeholder="ex: 50.00" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="appro-prix">Prix total payé (FCFA) <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="appro-prix" min="0" name="prix" class="form-control" placeholder="ex: 15000" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('add-appro-modal')">Annuler</button>
+                <button type="submit" class="btn btn-success btn-sm"><i class="fa-solid fa-boxes-packing"></i> Valider la réception</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function filterTable(query, tableId) {
+    const rows = document.querySelectorAll(`#${tableId} tbody tr`);
+    query = query.toLowerCase().trim();
+    rows.forEach(row => {
+        row.style.display = (!query || row.textContent.toLowerCase().includes(query)) ? '' : 'none';
+    });
+}
+
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.classList.add('active');
+        // Focus first input
+        setTimeout(() => {
+            const first = el.querySelector('input, select');
+            if (first) first.focus();
+        }, 100);
+    }
+}
+
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+        if (e.target === overlay) closeModal(overlay.id);
+    });
+});
+
+// Close modal on Escape key
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.active').forEach(m => closeModal(m.id));
+    }
+});
+</script>
+{% endblock %}
